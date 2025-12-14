@@ -35,8 +35,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     const items = [
       { name: 'Dashboard', path: '/dashboard', icon: Home, roles: ['admin', 'host', 'security', 'receptionist'] },
       { name: 'Meetings', path: '/meetings', icon: Calendar, roles: ['admin', 'host'] },
-      { name: 'Check-In', path: '/receptionist', icon: UserCheck, roles: ['receptionist', 'admin'] },
-      { name: 'Visitors', path: '/visitors', icon: Users, roles: ['admin', 'security', 'receptionist'] },
+      { name: 'Check-In', path: '/receptionist', icon: UserCheck, roles: ['receptionist', 'security', 'admin'] },
+      { name: 'Visitors', path: '/visitors', icon: Users, roles: ['admin', 'receptionist'] },
       { name: 'Users', path: '/admin/users', icon: Users, roles: ['admin'] },
       { name: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },
     ];

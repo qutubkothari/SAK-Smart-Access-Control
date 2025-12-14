@@ -103,6 +103,7 @@ export interface CreateMeetingDto {
   room_number?: string;
   purpose?: string;
   visitors: {
+    its_id?: string;
     name: string;
     email: string;
     phone: string;

@@ -1,7 +1,7 @@
 # API Documentation
 
 Base URL: `https://api.sak-access.com/v1`  
-EC2 IP: `http://13.232.42.132/api/v1`
+EC2 IP: `http://3.108.52.219/api/v1`
 
 ## Authentication
 
@@ -275,7 +275,7 @@ Remove from blacklist.
 
 ## WebSocket Events
 
-Connect to: `ws://13.232.42.132/socket.io`
+Connect to: `ws://3.108.52.219/socket.io`
 
 ### Events (Client → Server)
 - `join_room`: Join user's notification room

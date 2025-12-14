@@ -9,7 +9,7 @@ This system uses **PostgreSQL 14** running directly on your EC2 instance. No ext
 
 ### Step 1: SSH into EC2
 ```bash
-ssh -i sak-smart-access.pem ubuntu@13.232.42.132
+ssh -i sak-smart-access.pem ubuntu@3.108.52.219
 ```
 
 ### Step 2: Install PostgreSQL

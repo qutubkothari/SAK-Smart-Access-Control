@@ -10,6 +10,7 @@ import { VisitorsPage } from './pages/VisitorsPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
+import { VisitorPreRegistrationPage } from './pages/VisitorPreRegistrationPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuthStore } from './store/authStore';
 
@@ -95,6 +96,9 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Public route - no authentication required */}
+          <Route path="/preregister" element={<VisitorPreRegistrationPage />} />
 
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
 

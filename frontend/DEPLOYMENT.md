@@ -27,12 +27,12 @@ npm run build
 
 #### Step 2: Upload to EC2
 ```powershell
-scp -i ..\sak-smart-access.pem -r dist\* ubuntu@13.232.42.132:/var/www/sak-frontend/
+scp -i ..\sak-smart-access.pem -r dist\* ubuntu@3.108.52.219:/var/www/sak-frontend/
 ```
 
 #### Step 3: SSH to EC2
 ```powershell
-ssh -i ..\sak-smart-access.pem ubuntu@13.232.42.132
+ssh -i ..\sak-smart-access.pem ubuntu@3.108.52.219
 ```
 
 #### Step 4: Configure Nginx
@@ -44,7 +44,7 @@ Paste this configuration:
 ```nginx
 server {
     listen 80;
-    server_name 13.232.42.132;
+    server_name 3.108.52.219;
     root /var/www/sak-frontend;
     index index.html;
 
@@ -101,7 +101,7 @@ sudo systemctl reload nginx
 ## ✅ Verification
 
 ### 1. Check if frontend is accessible
-Open browser: **http://13.232.42.132**
+Open browser: **http://3.108.52.219**
 
 ### 2. Test Login
 ```
@@ -151,7 +151,7 @@ pm2 logs sak-backend
 ### Frontend shows blank page
 ```bash
 # Check if files were uploaded
-ssh -i ..\sak-smart-access.pem ubuntu@13.232.42.132
+ssh -i ..\sak-smart-access.pem ubuntu@3.108.52.219
 ls -la /var/www/sak-frontend/
 ```
 
@@ -176,7 +176,7 @@ sudo systemctl restart nginx
 
 ### Permission denied on upload
 ```bash
-ssh -i ..\sak-smart-access.pem ubuntu@13.232.42.132
+ssh -i ..\sak-smart-access.pem ubuntu@3.108.52.219
 sudo chown -R ubuntu:ubuntu /var/www/sak-frontend
 ```
 
@@ -190,7 +190,7 @@ When you make changes to frontend:
 # Build and deploy in one command
 cd frontend
 npm run build
-scp -i ..\sak-smart-access.pem -r dist\* ubuntu@13.232.42.132:/var/www/sak-frontend/
+scp -i ..\sak-smart-access.pem -r dist\* ubuntu@3.108.52.219:/var/www/sak-frontend/
 ```
 
 No need to restart Nginx - just refresh browser with Ctrl+F5
@@ -216,10 +216,10 @@ No need to restart Nginx - just refresh browser with Ctrl+F5
 
 | Service | URL |
 |---------|-----|
-| **Frontend** | http://13.232.42.132 |
-| **Backend API** | http://13.232.42.132/api/v1 |
-| **Health Check** | http://13.232.42.132/api/v1/health |
-| **WebSocket** | ws://13.232.42.132/socket.io |
+| **Frontend** | http://3.108.52.219 |
+| **Backend API** | http://3.108.52.219/api/v1 |
+| **Health Check** | http://3.108.52.219/api/v1/health |
+| **WebSocket** | ws://3.108.52.219/socket.io |
 
 ---
 

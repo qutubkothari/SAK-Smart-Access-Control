@@ -115,16 +115,16 @@ echo ""
 # Step 5: Test Deployment
 echo -e "${YELLOW}Step 5: Running Smoke Tests...${NC}"
 
-# Test API Health
+# Test API Health (backend exposes /health)
 echo "Testing API health endpoint..."
-API_RESPONSE=$(curl -s http://localhost:3000/api/v1/health)
-if echo $API_RESPONSE | grep -q "ok"; then
+API_RESPONSE=$(curl -s http://localhost:3000/health)
+if echo $API_RESPONSE | grep -q "success"; then
     echo -e "${GREEN}✅ API health check passed${NC}"
 else
     echo -e "${YELLOW}⚠️  API health check failed${NC}"
 fi
 
-# Test Nginx
+# Test Nginx serving frontend
 echo "Testing Nginx..."
 NGINX_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/)
 if [ "$NGINX_RESPONSE" = "200" ]; then
@@ -133,10 +133,10 @@ else
     echo -e "${YELLOW}⚠️  Nginx returned status: $NGINX_RESPONSE${NC}"
 fi
 
-# Test API through Nginx
+# Test backend through Nginx (proxied path)
 echo "Testing API through Nginx..."
-API_NGINX_RESPONSE=$(curl -s http://localhost/api/v1/health)
-if echo $API_NGINX_RESPONSE | grep -q "ok"; then
+API_NGINX_RESPONSE=$(curl -s http://localhost/api/health)
+if echo $API_NGINX_RESPONSE | grep -q "success"; then
     echo -e "${GREEN}✅ API accessible through Nginx${NC}"
 else
     echo -e "${YELLOW}⚠️  API not accessible through Nginx${NC}"

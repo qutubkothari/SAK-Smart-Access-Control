@@ -12,7 +12,7 @@ echo ""
 
 # Configuration
 EC2_USER="ubuntu"
-EC2_HOST="13.232.42.132"
+EC2_HOST="3.108.52.219"
 PEM_KEY="sak-smart-access.pem"
 REMOTE_PATH="/var/www/sak-frontend"
 NGINX_CONF="/etc/nginx/sites-available/sak-frontend"
@@ -43,7 +43,7 @@ ssh -i "../$PEM_KEY" $EC2_USER@$EC2_HOST << 'EOF'
 sudo tee /etc/nginx/sites-available/sak-frontend > /dev/null << 'NGINXCONF'
 server {
     listen 80;
-    server_name 13.232.42.132;
+    server_name 3.108.52.219;
     root /var/www/sak-frontend;
     index index.html;
 
@@ -110,8 +110,8 @@ echo "========================================"
 echo "🎉 Deployment Complete!"
 echo "========================================"
 echo ""
-echo "Frontend URL: http://13.232.42.132"
-echo "API URL: http://13.232.42.132/api/v1"
+echo "Frontend URL: http://3.108.52.219"
+echo "API URL: http://3.108.52.219/api/v1"
 echo ""
 echo "Test login:"
 echo "ITS ID: ITS000001"

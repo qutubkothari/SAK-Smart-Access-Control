@@ -211,7 +211,7 @@ Meeting status → "completed"
 ## 🚀 Deployment Status
 
 ### Infrastructure Setup
-- [x] EC2 Instance: 13.232.42.132 (ap-south-1)
+- [x] EC2 Instance: 3.108.52.219 (ap-south-1)
 - [x] PEM Key: Available in root folder
 - [ ] Node.js installed on EC2
 - [ ] PostgreSQL configured
@@ -417,7 +417,7 @@ The backend infrastructure is complete and production-ready. The system provides
 - ✅ Comprehensive features
 - ✅ Professional documentation
 
-**Next Action:** Deploy to EC2 (13.232.42.132) and begin frontend development.
+**Next Action:** Deploy to EC2 (3.108.52.219) and begin frontend development.
 
 ---
 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Calendar, Plus, Search } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { meetingApi } from '../services/api';
+import { socketService } from '../services/socket';
 import type { Meeting } from '../types';
 
 export const MeetingsPage: React.FC = () => {
@@ -11,28 +12,71 @@ export const MeetingsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
 
+  const normalizeMeeting = (m: any): Meeting => ({
+    id: m?.id,
+    hostId: m?.hostId ?? m?.host_id,
+    hostName: m?.hostName ?? m?.host_name,
+    meetingTime: m?.meetingTime ?? m?.meeting_time ?? m?.start_time,
+    durationMinutes: m?.durationMinutes ?? m?.duration_minutes ?? 60,
+    location: m?.location ?? '',
+    roomNumber: m?.roomNumber ?? m?.room_number,
+    purpose: m?.purpose,
+    status: (m?.status ?? 'scheduled') as Meeting['status'],
+    qrCodeUrl: m?.qrCodeUrl ?? m?.qr_code_url,
+    qrCodeHash: m?.qrCodeHash ?? m?.qr_code_hash,
+    hostCheckedIn: m?.hostCheckedIn ?? m?.host_checked_in ?? false,
+    hostCheckInTime: m?.hostCheckInTime ?? m?.host_check_in_time,
+    reminderSent: m?.reminderSent ?? m?.reminder_sent ?? false,
+    notes: m?.notes,
+    visitors: m?.visitors,
+    visitorCount: m?.visitorCount ?? m?.visitor_count,
+    host: m?.host,
+    createdAt: m?.createdAt ?? m?.created_at ?? new Date().toISOString(),
+  });
+
   useEffect(() => {
     const load = async () => {
       try {
         const res = await meetingApi.getAll();
-        setMeetings(res.data);
+        const payload: any = res?.data;
+        const list = Array.isArray(payload) ? payload : (payload?.data ?? []);
+        const normalized = Array.isArray(list) ? list.map(normalizeMeeting) : [];
+        setMeetings(normalized);
       } catch (e) {
         console.error('Failed to load meetings', e);
+        setMeetings([]);
       } finally {
         setLoading(false);
       }
     };
     load();
+
+    // Real-time updates
+    const handleMeetingCreated = () => {
+      load();
+    };
+    const handleMeetingUpdated = () => {
+      load();
+    };
+
+    socketService.on('meeting:created', handleMeetingCreated);
+    socketService.on('meeting:updated', handleMeetingUpdated);
+
+    return () => {
+      socketService.off('meeting:created', handleMeetingCreated);
+      socketService.off('meeting:updated', handleMeetingUpdated);
+    };
   }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return meetings;
-    return meetings.filter((m) => {
-      const title = (m as any).title ?? '';
-      const host = (m as any).host_name ?? (m as any).hostName ?? '';
-      const location = (m as any).location ?? '';
-      return [title, host, location].some((v) => String(v).toLowerCase().includes(q));
+    const list = Array.isArray(meetings) ? meetings : [];
+    if (!q) return list;
+    return list.filter((m) => {
+      const title = (m as any).title ?? m.purpose ?? 'Meeting';
+      const location = m.location ?? '';
+      const status = m.status ?? '';
+      return [title, location, status].some((v) => String(v).toLowerCase().includes(q));
     });
   }, [meetings, query]);
 
@@ -78,7 +122,9 @@ export const MeetingsPage: React.FC = () => {
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left text-gray-500 border-b">
-                  <th className="py-3 pr-4 font-medium">Title</th>
+                  <th className="py-3 pr-4 font-medium">Purpose</th>
+                  <th className="py-3 pr-4 font-medium">Host</th>
+                  <th className="py-3 pr-4 font-medium">Visitors</th>
                   <th className="py-3 pr-4 font-medium">Date</th>
                   <th className="py-3 pr-4 font-medium">Location</th>
                   <th className="py-3 pr-4 font-medium">Status</th>
@@ -88,8 +134,12 @@ export const MeetingsPage: React.FC = () => {
               <tbody>
                 {filtered.map((m: any) => (
                   <tr key={m.id} className="border-b last:border-b-0">
-                    <td className="py-3 pr-4 font-medium text-gray-900">{m.title || 'Meeting'}</td>
-                    <td className="py-3 pr-4 text-gray-700">{m.start_time ? new Date(m.start_time).toLocaleString() : '-'}</td>
+                    <td className="py-3 pr-4 font-medium text-gray-900">{m.purpose || 'Meeting'}</td>
+                    <td className="py-3 pr-4 text-gray-700">{m.hostName || '-'}</td>
+                    <td className="py-3 pr-4 text-gray-700">
+                      {m.visitorCount ? `${m.visitorCount} visitor${m.visitorCount > 1 ? 's' : ''}` : '-'}
+                    </td>
+                    <td className="py-3 pr-4 text-gray-700">{m.meetingTime ? new Date(m.meetingTime).toLocaleString() : '-'}</td>
                     <td className="py-3 pr-4 text-gray-700">{m.location || '-'}</td>
                     <td className="py-3 pr-4">
                       <span className="badge badge-primary">{m.status || 'scheduled'}</span>

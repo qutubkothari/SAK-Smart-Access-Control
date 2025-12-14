@@ -21,8 +21,8 @@ export const checkInVisitor = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
-    // Verify JWT-based QR code (with one-time use enforcement)
-    const qrData = await QRCodeService.verifyQRCode(qr_code);
+    // Verify QR code input (supports short QR id/URL and legacy JWT tokens)
+    const qrData = await QRCodeService.verifyQrCodeInput(qr_code);
 
     if (!qrData) {
       res.status(400).json({
@@ -87,6 +87,39 @@ export const checkInVisitor = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
+    // Get meeting to check time window
+    const meeting = await db('meetings')
+      .where({ id: qrData.meeting_id })
+      .first();
+
+    if (!meeting) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'MEETING_NOT_FOUND',
+          message: 'Meeting not found'
+        }
+      });
+      return;
+    }
+
+    // Check if check-in is within 30 minutes before meeting time
+    const meetingTime = new Date(meeting.meeting_time);
+    const now = new Date();
+    const thirtyMinutesBefore = new Date(meetingTime.getTime() - 30 * 60 * 1000);
+
+    if (now < thirtyMinutesBefore) {
+      const minutesUntilWindow = Math.ceil((thirtyMinutesBefore.getTime() - now.getTime()) / 60000);
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'TOO_EARLY',
+          message: `Check-in opens 30 minutes before meeting. Please wait ${minutesUntilWindow} more minutes.`
+        }
+      });
+      return;
+    }
+
     // Check blacklist
     const blacklisted = await db('blacklist')
       .where({ is_active: true })
@@ -107,19 +140,23 @@ export const checkInVisitor = async (req: AuthRequest, res: Response): Promise<v
       return;
     }
 
+    // Handle photo upload if provided
+    let photoUrl = visitor.photo_url;
+    if (req.file) {
+      // Convert to base64 data URL
+      photoUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    }
+
     // Check-in visitor
     await db('visitors')
       .where({ id: visitor.id })
       .update({
         check_in_time: new Date(),
-        checked_in_by: req.user!.id
+        checked_in_by: req.user!.id,
+        photo_url: photoUrl
       });
 
-    // Get meeting and host info
-    const meeting = await db('meetings')
-      .where({ id: visitor.meeting_id })
-      .first();
-
+    // Get host info
     const host = await db('users')
       .where({ id: meeting.host_id })
       .first();
@@ -152,6 +189,13 @@ export const checkInVisitor = async (req: AuthRequest, res: Response): Promise<v
         notification_sent: true
       }
     });
+
+    // Emit real-time update
+    io.emit('visitor:checkin', {
+      visitor_id: visitor.id,
+      meeting_id: meeting.id,
+      check_in_time: new Date()
+    });
   } catch (error) {
     logger.error('Error checking in visitor:', error);
     res.status(500).json({
@@ -168,6 +212,8 @@ export const checkOutVisitor = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
+    const visitor = await db('visitors').where({ id }).first();
+
     await db('visitors')
       .where({ id })
       .update({
@@ -175,6 +221,13 @@ export const checkOutVisitor = async (req: AuthRequest, res: Response) => {
       });
 
     logger.info(`Visitor checked out: ${id}`);
+
+    // Emit real-time update
+    io.emit('visitor:checkout', {
+      visitor_id: id,
+      meeting_id: visitor.meeting_id,
+      check_out_time: new Date()
+    });
 
     res.json({
       success: true,
@@ -197,6 +250,8 @@ export const getVisitors = async (req: AuthRequest, res: Response) => {
     const { page = 1, limit = 50, status } = req.query;
     const offset = (Number(page) - 1) * Number(limit);
 
+    const countQuery = db('visitors');
+
     let query = db('visitors')
       .leftJoin('meetings', 'visitors.meeting_id', 'meetings.id')
       .leftJoin('users', 'meetings.host_id', 'users.id')
@@ -209,12 +264,15 @@ export const getVisitors = async (req: AuthRequest, res: Response) => {
       .orderBy('visitors.check_in_time', 'desc');
 
     if (status === 'checked_in') {
+      countQuery.whereNotNull('visitors.check_in_time').whereNull('visitors.check_out_time');
       query = query.whereNotNull('visitors.check_in_time').whereNull('visitors.check_out_time');
     } else if (status === 'checked_out') {
+      countQuery.whereNotNull('visitors.check_out_time');
       query = query.whereNotNull('visitors.check_out_time');
     }
 
-    const [{ count }] = await query.clone().count('visitors.id as count');
+    const [{ count }] = await countQuery.count('visitors.id as count');
+
     const visitors = await query.limit(Number(limit)).offset(offset);
 
     res.json({
@@ -304,6 +362,101 @@ export const lookupVisitor = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     if (its_id) {
+      const directory = await db('visitor_directory')
+        .select('its_id', 'name', 'email', 'phone', 'company')
+        .where({ its_id })
+        .first();
+
+      if (directory) {
+        res.json({
+          success: true,
+          data: {
+            source: 'visitor_directory',
+            visitor: {
+              its_id: directory.its_id,
+              name: directory.name,
+              email: directory.email,
+              phone: directory.phone,
+              company: directory.company
+            }
+          }
+        });
+        return;
+      }
+
+      const prevByIts = await db('visitors')
+        .select('its_id', 'name', 'email', 'phone', 'company')
+        .where({ its_id })
+        .orderBy('updated_at', 'desc')
+        .first();
+
+      if (prevByIts) {
+        res.json({
+          success: true,
+          data: {
+            source: 'visitors',
+            visitor: {
+              its_id: prevByIts.its_id,
+              name: prevByIts.name,
+              email: prevByIts.email,
+              phone: prevByIts.phone,
+              company: prevByIts.company
+            }
+          }
+        });
+        return;
+      }
+    }
+
+    if (phone) {
+      const directoryByPhone = await db('visitor_directory')
+        .select('its_id', 'name', 'email', 'phone', 'company')
+        .where({ phone })
+        .first();
+
+      if (directoryByPhone) {
+        res.json({
+          success: true,
+          data: {
+            source: 'visitor_directory',
+            visitor: {
+              its_id: directoryByPhone.its_id,
+              name: directoryByPhone.name,
+              email: directoryByPhone.email,
+              phone: directoryByPhone.phone,
+              company: directoryByPhone.company
+            }
+          }
+        });
+        return;
+      }
+
+      const prev = await db('visitors')
+        .select('its_id', 'name', 'email', 'phone', 'company')
+        .where({ phone })
+        .orderBy('updated_at', 'desc')
+        .first();
+
+      if (prev) {
+        res.json({
+          success: true,
+          data: {
+            source: 'visitors',
+            visitor: {
+              its_id: prev.its_id,
+              name: prev.name,
+              email: prev.email,
+              phone: prev.phone,
+              company: prev.company
+            }
+          }
+        });
+        return;
+      }
+    }
+
+    // Backward-compatible fallback: allow lookups against users (employee directory)
+    if (its_id) {
       const user = await db('users')
         .select('its_id', 'name', 'email', 'phone')
         .where({ its_id })
@@ -319,30 +472,6 @@ export const lookupVisitor = async (req: AuthRequest, res: Response): Promise<vo
               name: user.name,
               email: user.email,
               phone: user.phone
-            }
-          }
-        });
-        return;
-      }
-    }
-
-    if (phone) {
-      const prev = await db('visitors')
-        .select('name', 'email', 'phone', 'company')
-        .where({ phone })
-        .orderBy('updated_at', 'desc')
-        .first();
-
-      if (prev) {
-        res.json({
-          success: true,
-          data: {
-            source: 'visitors',
-            visitor: {
-              name: prev.name,
-              email: prev.email,
-              phone: prev.phone,
-              company: prev.company
             }
           }
         });

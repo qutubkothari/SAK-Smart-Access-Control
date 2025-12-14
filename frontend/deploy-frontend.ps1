@@ -7,7 +7,7 @@ Write-Host ""
 
 # Configuration
 $EC2_USER = "ubuntu"
-$EC2_HOST = "13.232.42.132"
+$EC2_HOST = "3.108.52.219"
 $PEM_KEY = "..\sak-smart-access.pem"
 $REMOTE_PATH = "/var/www/sak-frontend"
 
@@ -41,7 +41,7 @@ Write-Host "Step 4: Configuring Nginx..." -ForegroundColor Yellow
 $nginxConfig = @'
 server {
     listen 80;
-    server_name 13.232.42.132;
+    server_name 3.108.52.219;
     root /var/www/sak-frontend;
     index index.html;
 
@@ -110,9 +110,9 @@ Write-Host "🎉 Deployment Complete!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Frontend URL: " -NoNewline
-Write-Host "http://13.232.42.132" -ForegroundColor Yellow
+Write-Host "http://3.108.52.219" -ForegroundColor Yellow
 Write-Host "API URL: " -NoNewline
-Write-Host "http://13.232.42.132/api/v1" -ForegroundColor Yellow
+Write-Host "http://3.108.52.219/api/v1" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "Test login:" -ForegroundColor Cyan
 Write-Host "ITS ID: ITS000001"

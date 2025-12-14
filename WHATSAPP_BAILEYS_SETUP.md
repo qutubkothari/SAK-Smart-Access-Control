@@ -171,7 +171,7 @@ pm2 save
 2. **First Connection on Server**:
 ```bash
 # SSH into server
-ssh -i your-key.pem ubuntu@13.232.42.132
+ssh -i your-key.pem ubuntu@3.108.52.219
 
 # View logs to see QR code
 pm2 logs sak-backend

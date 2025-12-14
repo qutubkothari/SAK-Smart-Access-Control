@@ -21,7 +21,8 @@ export const DashboardPage: React.FC = () => {
       const response = user?.role === 'host' 
         ? await dashboardApi.getHostStats()
         : await dashboardApi.getStats();
-      setStats(response.data);
+      const payload: any = response?.data;
+      setStats((payload?.data ?? payload) as DashboardStats);
     } catch (error) {
       console.error('Failed to load dashboard:', error);
     } finally {

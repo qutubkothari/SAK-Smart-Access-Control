@@ -139,7 +139,7 @@
 ## 🚀 Deployment Checklist
 
 ### Prerequisites ✅
-- [x] EC2 instance available (13.232.42.132)
+- [x] EC2 instance available (3.108.52.219)
 - [x] PEM key file (sak-smart-access.pem)
 - [x] Backend code complete
 - [x] Database schema ready
@@ -184,7 +184,7 @@
 ## 📊 System Requirements
 
 ### Server (EC2 Instance)
-- **Current:** 13.232.42.132 (ap-south-1)
+- **Current:** 3.108.52.219 (ap-south-1)
 - **Recommended:** t3.medium or better
   - 2 vCPUs
   - 4 GB RAM
@@ -234,7 +234,7 @@
 
 ### Health Check
 ```bash
-curl http://13.232.42.132/api/v1/health
+curl http://3.108.52.219/api/v1/health
 ```
 
 **Expected Response:**
@@ -249,7 +249,7 @@ curl http://13.232.42.132/api/v1/health
 
 ### Login Test
 ```bash
-curl -X POST http://13.232.42.132/api/v1/auth/login \
+curl -X POST http://3.108.52.219/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"itsId": "ITS000001", "password": "Admin123!"}'
 ```

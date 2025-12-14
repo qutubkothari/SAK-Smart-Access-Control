@@ -70,6 +70,8 @@ export const meetingApi = {
   create: (data: CreateMeetingDto) => api.post<Meeting>('/meetings', data),
   getAll: (params?: { status?: string; date?: string }) => api.get<Meeting[]>('/meetings', { params }),
   getById: (id: string) => api.get<Meeting>(`/meetings/${id}`),
+  getAvailability: (params: { host_id: string; date: string; duration_minutes?: number; slot_minutes?: number }) =>
+    api.get('/meetings/availability', { params }),
   update: (id: string, data: Partial<Meeting>) => api.put<Meeting>(`/meetings/${id}`, data),
   cancel: (id: string) => api.patch<Meeting>(`/meetings/${id}/cancel`),
   checkIn: (id: string) => api.post<Meeting>(`/meetings/${id}/check-in`),
@@ -80,11 +82,26 @@ export const meetingApi = {
 export const visitorApi = {
   lookup: (params: { its_id?: string; phone?: string }) => api.get('/visitors/lookup', { params }),
   checkIn: (qrCode: string, data?: { photoUrl?: string }) => 
-    api.post<Visitor>('/visitors/check-in', { qrCode, ...data }),
+    api.post<Visitor>('/visitors/check-in', { qr_code: qrCode, ...data }),
+  checkInWithPhoto: (formData: FormData) => 
+    api.post<Visitor>('/visitors/check-in', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
   checkOut: (id: string) => api.post<Visitor>(`/visitors/${id}/check-out`),
   getById: (id: string) => api.get<Visitor>(`/visitors/${id}`),
   getAll: (params?: { status?: string; date?: string }) => api.get<Visitor[]>('/visitors', { params }),
   getActive: () => api.get<Visitor[]>('/visitors/active'),
+};
+
+// Pre-registration APIs
+export const preRegistrationApi = {
+  register: (data: any) => api.post('/preregister/register', data),
+  getPreRegistered: (params?: { date?: string }) => api.get('/preregister/visitors', { params }),
+  uploadPhoto: (visitorId: string, formData: FormData) => 
+    api.post(`/preregister/visitors/${visitorId}/photo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  approve: (visitorId: string) => api.post(`/preregister/visitors/${visitorId}/approve`),
 };
 
 // Dashboard APIs

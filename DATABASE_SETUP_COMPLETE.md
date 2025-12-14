@@ -24,7 +24,7 @@ You have **THREE options** to set up your PostgreSQL database. Each has its use 
 
 #### 1. Install PostgreSQL on EC2
 ```bash
-ssh -i sak-smart-access.pem ubuntu@13.232.42.132
+ssh -i sak-smart-access.pem ubuntu@3.108.52.219
 
 sudo apt update
 sudo apt install -y postgresql-14 postgresql-contrib-14

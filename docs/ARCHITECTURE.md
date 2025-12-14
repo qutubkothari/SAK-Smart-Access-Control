@@ -332,7 +332,7 @@ Log Structure (JSON):
   "context": {
     "userId": "uuid",
     "meetingId": "uuid",
-    "ip": "13.232.42.132"
+    "ip": "3.108.52.219"
   }
 }
 ```

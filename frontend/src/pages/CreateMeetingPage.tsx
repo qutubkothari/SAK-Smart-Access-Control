@@ -15,11 +15,27 @@ export const CreateMeetingPage: React.FC = () => {
   const [hostResults, setHostResults] = useState<HostSearchResult[]>([]);
   const [selectedHost, setSelectedHost] = useState<HostSearchResult | null>(null);
   const [hostSearching, setHostSearching] = useState(false);
-  const hostSearchTimeout = useRef<number | undefined>(undefined);
+  const hostSearchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Meeting details
   const [meetingTime, setMeetingTime] = useState('');
-  const [duration, setDuration] = useState(60);
+  const [meetingDate, setMeetingDate] = useState('');
+  const [duration, setDuration] = useState(30);
+  const [timeSlots, setTimeSlots] = useState<Array<{ time: string; available: boolean }>>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
+
+  const toMinutes = (hhmm: string) => {
+    const [h, m] = hhmm.split(':').map((x) => parseInt(x, 10));
+    if (Number.isNaN(h) || Number.isNaN(m)) return null;
+    return h * 60 + m;
+  };
+
+  const minutesToHHMM = (mins: number) => {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  };
 
   // Step 2: Add visitors
   const [visitors, setVisitors] = useState([
@@ -62,6 +78,103 @@ export const CreateMeetingPage: React.FC = () => {
     setSelectedHost(host);
     setHostQuery('');
     setHostResults([]);
+    setMeetingTime('');
+    setMeetingDate('');
+    setSelectedSlots([]);
+    setTimeSlots([]);
+  };
+
+  const todayDate = new Date();
+  const minDate = new Date(todayDate.getTime() - todayDate.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const nowHHMM = new Date().toTimeString().slice(0, 5);
+
+  useEffect(() => {
+    const fetchSlots = async () => {
+      if (!selectedHost || !meetingDate) {
+        setTimeSlots([]);
+        return;
+      }
+
+      setSlotsLoading(true);
+      try {
+        const res: any = await meetingApi.getAvailability({
+          host_id: selectedHost.id,
+          date: meetingDate,
+          duration_minutes: 30,
+          slot_minutes: 30,
+        });
+        const slots = res?.data?.data?.slots;
+        setTimeSlots(Array.isArray(slots) ? slots : []);
+      } catch (e) {
+        console.error('Failed to load availability slots', e);
+        setTimeSlots([]);
+      } finally {
+        setSlotsLoading(false);
+      }
+    };
+
+    fetchSlots();
+  }, [selectedHost?.id, meetingDate]);
+
+  const pickSlot = (time: string, available: boolean) => {
+    if (!available) return;
+    if (meetingDate === minDate && time < nowHHMM) return;
+
+    const slotMap = new Map(timeSlots.map((s) => [s.time, s.available] as const));
+    const clickedMin = toMinutes(time);
+    if (clickedMin === null) return;
+
+    // Clicking an already-selected slot resets to that single slot (simple UX)
+    if (selectedSlots.includes(time)) {
+      setSelectedSlots([time]);
+      setDuration(30);
+      setMeetingTime(`${meetingDate}T${time}`);
+      return;
+    }
+
+    if (selectedSlots.length === 0) {
+      setSelectedSlots([time]);
+      setDuration(30);
+      setMeetingTime(`${meetingDate}T${time}`);
+      return;
+    }
+
+    const mins = selectedSlots
+      .map((t) => toMinutes(t))
+      .filter((v): v is number => v !== null)
+      .sort((a, b) => a - b);
+
+    const minSel = mins[0];
+    const maxSel = mins[mins.length - 1];
+
+    const isBeforeEdge = clickedMin === minSel - 30;
+    const isAfterEdge = clickedMin === maxSel + 30;
+
+    if (!isBeforeEdge && !isAfterEdge) {
+      // Non-adjacent selection resets (keeps selection contiguous)
+      setSelectedSlots([time]);
+      setDuration(30);
+      setMeetingTime(`${meetingDate}T${time}`);
+      return;
+    }
+
+    const newMin = isBeforeEdge ? clickedMin : minSel;
+    const newMax = isAfterEdge ? clickedMin : maxSel;
+
+    // Ensure every 30-min slot in the range is available
+    const range: string[] = [];
+    for (let m = newMin; m <= newMax; m += 30) {
+      const hhmm = minutesToHHMM(m);
+      if (!slotMap.get(hhmm)) {
+        return;
+      }
+      range.push(hhmm);
+    }
+
+    range.sort();
+    setSelectedSlots(range);
+    setDuration(range.length * 30);
+    setMeetingTime(`${meetingDate}T${range[0]}`);
   };
 
   const addVisitor = () => {
@@ -198,7 +311,8 @@ export const CreateMeetingPage: React.FC = () => {
         location,
         room_number: undefined,
         purpose: undefined,
-        visitors: validVisitors.map(({ name, email, phone, company, visitorType }) => ({
+        visitors: validVisitors.map(({ itsId, name, email, phone, company, visitorType }) => ({
+          its_id: itsId?.trim() || undefined,
           name,
           email,
           phone,
@@ -342,38 +456,90 @@ export const CreateMeetingPage: React.FC = () => {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Date & Time *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
                   <input
-                    type="datetime-local"
-                    value={meetingTime}
-                    onChange={(e) => setMeetingTime(e.target.value)}
+                    type="date"
+                    value={meetingDate}
+                    onChange={(e) => {
+                      setMeetingDate(e.target.value);
+                      setSelectedSlots([]);
+                      setMeetingTime('');
+                      setDuration(30);
+                    }}
                     className="input-field"
                     required
-                    min={new Date().toISOString().slice(0, 16)}
+                    min={minDate}
                   />
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Duration
-                  </label>
-                  <select
-                    value={duration}
-                    onChange={(e) => setDuration(Number(e.target.value))}
-                    className="input-field"
-                  >
-                    <option value={15}>15 minutes</option>
-                    <option value={30}>30 minutes</option>
-                    <option value={45}>45 minutes</option>
-                    <option value={60}>1 hour</option>
-                    <option value={90}>1.5 hours</option>
-                    <option value={120}>2 hours</option>
-                    <option value={180}>3 hours</option>
-                  </select>
-                </div>
               </div>
+
+              {/* Time slots (30-min intervals) */}
+              {meetingDate && (
+                <div className="mt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">Select Time Slots (30-min) *</label>
+                    {slotsLoading && <span className="text-sm text-gray-500">Loading...</span>}
+                  </div>
+
+                  {timeSlots.length > 0 ? (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                      {timeSlots.map((s) => {
+                        const isPast = meetingDate === minDate && s.time < nowHHMM;
+                        const disabled = !s.available || isPast;
+                        const selected = selectedSlots.includes(s.time);
+                        return (
+                          <button
+                            key={s.time}
+                            type="button"
+                            onClick={() => pickSlot(s.time, s.available)}
+                            disabled={disabled}
+                            className={
+                              `px-2 py-2 rounded border text-sm transition ` +
+                              (selected
+                                ? 'bg-primary-600 text-white border-primary-600'
+                                : disabled
+                                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                  : 'bg-white text-gray-800 border-gray-200 hover:bg-gray-50')
+                            }
+                            title={
+                              isPast
+                                ? 'Past time'
+                                : (!s.available ? 'Already booked' : 'Available')
+                            }
+                          >
+                            {s.time}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-gray-500">Select a date to see available slots.</div>
+                  )}
+
+                  {selectedSlots.length > 0 && (
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <div className="text-sm text-gray-700">
+                        Selected: <span className="font-medium">{selectedSlots[0]}</span> - <span className="font-medium">{minutesToHHMM((toMinutes(selectedSlots[selectedSlots.length - 1]) || 0) + 30)}</span>
+                        <span className="text-gray-500"> ({duration} mins)</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="text-sm text-red-600 hover:text-red-700"
+                        onClick={() => {
+                          setSelectedSlots([]);
+                          setMeetingTime('');
+                          setDuration(30);
+                        }}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Hidden value so existing submit validation stays the same */}
+                  <input type="hidden" value={meetingTime} readOnly />
+                </div>
+              )}
             </div>
           )}
 

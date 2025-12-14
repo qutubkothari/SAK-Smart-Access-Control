@@ -358,7 +358,7 @@ npm run build
 sudo cp -r dist/* /var/www/html/
 
 # 2. Test
-curl http://13.232.42.132/api/v1/health
+curl http://3.108.52.219/api/v1/health
 ```
 
 ---

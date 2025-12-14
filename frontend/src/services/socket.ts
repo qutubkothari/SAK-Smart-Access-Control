@@ -1,6 +1,21 @@
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api/v1', '') || 'http://localhost:3000';
+// Resolve socket endpoint: prefer explicit VITE_SOCKET_URL, otherwise derive from API URL
+// and fall back to current origin when API URL is relative.
+const rawApiUrl = import.meta.env.VITE_API_URL;
+const socketUrlFromEnv = (import.meta as any).env?.VITE_SOCKET_URL as string | undefined;
+
+const SOCKET_URL = (() => {
+  if (socketUrlFromEnv) return socketUrlFromEnv;
+  if (rawApiUrl) {
+    // If API URL is absolute, strip the /api/v1 suffix; if relative, use window origin
+    if (/^https?:\/\//i.test(rawApiUrl)) {
+      return rawApiUrl.replace(/\/api\/v1\/?$/, '');
+    }
+    return window.location.origin;
+  }
+  return window.location.origin;
+})();
 
 class SocketService {
   private socket: Socket | null = null;

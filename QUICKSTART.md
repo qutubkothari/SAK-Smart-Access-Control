@@ -1,7 +1,7 @@
 # 🚀 Quick Start - Deploy to EC2 in 15 Minutes
 
 ## Prerequisites Checklist
-- [ ] EC2 instance running (13.232.42.132)
+- [ ] EC2 instance running (3.108.52.219)
 - [ ] PEM key file in root: `sak-smart-access.pem`
 - [ ] GitHub repository cloned locally
 - [ ] AWS account access (for SES setup later)
@@ -10,7 +10,7 @@
 
 ## Step 1: Connect to EC2 (1 min)
 ```bash
-ssh -i sak-smart-access.pem ubuntu@13.232.42.132
+ssh -i sak-smart-access.pem ubuntu@3.108.52.219
 ```
 
 ---
@@ -104,7 +104,7 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 
 # Frontend URL (update after frontend deployment)
-FRONTEND_URL=http://13.232.42.132
+FRONTEND_URL=http://3.108.52.219
 
 # AWS SES Configuration (configure later)
 AWS_REGION=ap-south-1
@@ -173,7 +173,7 @@ Paste this configuration:
 ```nginx
 server {
     listen 80;
-    server_name 13.232.42.132;
+   server_name 3.108.52.219;
 
     location / {
         proxy_pass http://localhost:3000;
@@ -221,7 +221,7 @@ sudo systemctl enable nginx
 curl http://localhost:3000/api/v1/health
 
 # Test from outside (from your local machine)
-curl http://13.232.42.132/api/v1/health
+curl http://3.108.52.219/api/v1/health
 ```
 
 You should see:
@@ -240,7 +240,7 @@ You should see:
 
 ### Test Login API
 ```bash
-curl -X POST http://13.232.42.132/api/v1/auth/login \
+curl -X POST http://3.108.52.219/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "itsId": "ITS000001",

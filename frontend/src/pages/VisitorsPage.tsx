@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Users } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { visitorApi } from '../services/api';
+import { socketService } from '../services/socket';
 import type { Visitor } from '../types';
 
 export const VisitorsPage: React.FC = () => {
@@ -13,7 +14,9 @@ export const VisitorsPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await visitorApi.getAll();
-      setVisitors(res.data);
+      // Backend returns { success, data: [...], meta }
+      const visitorData = (res.data as any)?.data || res.data;
+      setVisitors(Array.isArray(visitorData) ? visitorData : []);
     } catch (e) {
       console.error('Failed to load visitors', e);
     } finally {
@@ -23,6 +26,22 @@ export const VisitorsPage: React.FC = () => {
 
   useEffect(() => {
     reload();
+
+    // Real-time updates
+    const handleCheckin = () => {
+      reload();
+    };
+    const handleCheckout = () => {
+      reload();
+    };
+
+    socketService.on('visitor:checkin', handleCheckin);
+    socketService.on('visitor:checkout', handleCheckout);
+
+    return () => {
+      socketService.off('visitor:checkin', handleCheckin);
+      socketService.off('visitor:checkout', handleCheckout);
+    };
   }, []);
 
   const filtered = useMemo(() => {

@@ -1,7 +1,7 @@
 # Deployment Guide for EC2
 
 ## Server Info
-- **IP:** 13.232.42.132
+- **IP:** 3.108.52.219
 - **Region:** ap-south-1 (Mumbai)
 - **PEM Key:** sak-smart-access.pem
 
@@ -9,7 +9,7 @@
 
 ### 1. SSH into EC2
 ```bash
-ssh -i sak-smart-access.pem ubuntu@13.232.42.132
+ssh -i sak-smart-access.pem ubuntu@3.108.52.219
 ```
 
 ### 2. Update System
@@ -128,7 +128,7 @@ Add configuration:
 ```nginx
 server {
     listen 80;
-    server_name 13.232.42.132;
+  server_name 3.108.52.219;
 
     # API endpoints
     location /api/ {
@@ -260,7 +260,7 @@ jobs:
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master
         with:
-          host: 13.232.42.132
+          host: 3.108.52.219
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |

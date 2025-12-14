@@ -38,7 +38,7 @@ SAK-Smart-Access-Control/
 - Zustand (State Management)
 
 **Infrastructure:**
-- AWS EC2 (13.232.42.132)
+- AWS EC2 (3.108.52.219)
 - AWS RDS PostgreSQL
 - AWS S3, SES, SNS
 - Nginx Reverse Proxy
@@ -116,11 +116,11 @@ Departments  Notifications
 
 ## 🌐 Deployment
 
-Deployed on AWS EC2: `13.232.42.132`
+Deployed on AWS EC2: `3.108.52.219`
 
 ```bash
 # SSH into EC2
-ssh -i sak-smart-access.pem ubuntu@13.232.42.132
+ssh -i sak-smart-access.pem ubuntu@3.108.52.219
 
 # Deploy
 ./deployment/deploy.sh

@@ -134,7 +134,7 @@ curl http://localhost:5000/health
 ### SSH into EC2
 ```bash
 # Windows PowerShell
-ssh -i sak-smart-access.pem ubuntu@13.232.42.132
+ssh -i sak-smart-access.pem ubuntu@3.108.52.219
 
 # If permission error:
 icacls sak-smart-access.pem /inheritance:r
@@ -273,7 +273,7 @@ pg_dump -U sak_user sak_access_control > backup_$(date +%Y%m%d).sql
 tar -czf backup_$(date +%Y%m%d).tar.gz SAK-Smart-Access-Control/
 
 # Copy to local machine
-scp -i sak-smart-access.pem ubuntu@13.232.42.132:/home/ubuntu/backup_*.tar.gz ./
+scp -i sak-smart-access.pem ubuntu@3.108.52.219:/home/ubuntu/backup_*.tar.gz ./
 ```
 
 ### Restore

@@ -29,6 +29,8 @@
 10. ✅ WhatsApp integration (Free!)
 11. ✅ Multi-tenant WhatsApp Gateway API
 12. ✅ Security features (JWT, encryption, rate limiting)
+13. ✅ **NEW:** Visitor pre-registration portal (self-service)
+14. ✅ **NEW:** Webcam photo capture at check-in
 
 ---
 

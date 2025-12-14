@@ -1,7 +1,6 @@
 import QRCode from 'qrcode';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid';
 import logger from '../utils/logger';
 import redis from '../config/redis';
 
@@ -18,6 +17,27 @@ class QRCodeService {
    * Generate secure JWT-based QR code for visitor
    * Industry standard: Signed JWT with one-time use token
    */
+  private generateShortQrId(): string {
+    // Compact, URL-safe, human-friendly id (Base62) to keep QR payload small.
+    // 9 bytes = 72 bits of entropy => ~13 Base62 chars.
+    const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    const bytes = crypto.randomBytes(9);
+
+    let value = 0n;
+    for (const b of bytes) value = (value << 8n) | BigInt(b);
+
+    if (value === 0n) return '0';
+
+    let out = '';
+    const base = 62n;
+    while (value > 0n) {
+      const idx = Number(value % base);
+      out = alphabet[idx] + out;
+      value = value / base;
+    }
+    return out;
+  }
+
   async generateQRCode(
     meetingId: string,
     visitorId: string,
@@ -26,7 +46,7 @@ class QRCodeService {
   ): Promise<{ token: string; image: string; qrId: string }> {
     try {
       // Generate unique QR ID (jti - JWT ID)
-      const qrId = uuidv4();
+      const qrId = this.generateShortQrId();
 
       // Create JWT payload with security claims
       const payload = {
@@ -56,7 +76,9 @@ class QRCodeService {
       }));
 
       // Generate QR code image
-      const qrImage = await QRCode.toDataURL(token, {
+      // IMPORTANT: encode the short QR id (jti) instead of the full JWT.
+      // Dense JWT QRs are hard to scan on phone cameras (especially off screens).
+      const qrImage = await QRCode.toDataURL(qrId, {
         errorCorrectionLevel: 'H',
         type: 'image/png',
         width: 400,
@@ -80,13 +102,92 @@ class QRCodeService {
     }
   }
 
+  private normalizeQrInput(input: string): string {
+    const raw = String(input || '').trim();
+    if (!raw) return raw;
+
+    // If the QR contains a URL, try to extract the last path segment.
+    // Example: https://sac.saksolution.com/qr/<id>
+    try {
+      if (/^https?:\/\//i.test(raw)) {
+        const url = new URL(raw);
+        const segments = url.pathname.split('/').filter(Boolean);
+        const last = segments[segments.length - 1];
+        if (last) return last;
+      }
+    } catch {
+      // ignore
+    }
+
+    // Allow simple prefixes like "qr:<id>"
+    const prefixMatch = raw.match(/^(?:qr:|sak:)(.+)$/i);
+    if (prefixMatch?.[1]) return prefixMatch[1].trim();
+
+    return raw;
+  }
+
+  private async markQrUsed(qrId: string, qrInfo: any): Promise<void> {
+    const ttl = await redis.ttl(`qr:${qrId}`);
+    if (ttl && ttl > 0) {
+      await redis.setEx(`qr:${qrId}`, ttl, JSON.stringify(qrInfo));
+      return;
+    }
+    await redis.set(`qr:${qrId}`, JSON.stringify(qrInfo));
+  }
+
+  /**
+   * Verify a short QR id (jti) with one-time use enforcement.
+   */
+  async verifyQrId(qrIdInput: string): Promise<any> {
+    const qrId = this.normalizeQrInput(qrIdInput);
+    if (!qrId) return null;
+
+    const qrData = await redis.get(`qr:${qrId}`);
+    if (!qrData) {
+      logger.warn(`QR code expired or invalid: ${qrId}`);
+      return null;
+    }
+
+    const qrInfo = JSON.parse(qrData);
+    if (qrInfo.used) {
+      logger.warn(`QR code already used: ${qrId}`);
+      return { error: 'QR_CODE_ALREADY_USED', message: 'This QR code has already been scanned' };
+    }
+
+    qrInfo.used = true;
+    qrInfo.used_at = new Date().toISOString();
+    await this.markQrUsed(qrId, qrInfo);
+
+    logger.info(`QR id verified successfully: ${qrId}`);
+
+    return {
+      visitor_id: qrInfo.visitor_id,
+      meeting_id: qrInfo.meeting_id,
+      qr_id: qrId
+    };
+  }
+
+  /**
+   * Verify either a JWT token (legacy) or a short QR id / URL.
+   */
+  async verifyQrCodeInput(input: string): Promise<any> {
+    const normalized = this.normalizeQrInput(input);
+    // JWTs have 3 dot-separated parts.
+    if (normalized.split('.').length === 3) {
+      return this.verifyQRCode(normalized);
+    }
+    return this.verifyQrId(normalized);
+  }
+
   /**
    * Verify JWT-based QR code with one-time use enforcement
    */
   async verifyQRCode(token: string): Promise<any> {
     try {
+      const normalized = this.normalizeQrInput(token);
+
       // Verify and decode JWT
-      const decoded = jwt.verify(token, this.jwtSecret, {
+      const decoded = jwt.verify(normalized, this.jwtSecret, {
         algorithms: ['HS256'],
         audience: 'check-in-terminal',
         issuer: 'SAK-Access-Control'
@@ -110,7 +211,7 @@ class QRCodeService {
       // Mark QR as used
       qrInfo.used = true;
       qrInfo.used_at = new Date().toISOString();
-      await redis.set(`qr:${decoded.jti}`, JSON.stringify(qrInfo));
+      await this.markQrUsed(decoded.jti, qrInfo);
 
       logger.info(`QR code verified successfully: ${decoded.jti}`);
 
