@@ -43,7 +43,19 @@ const buildOverlapQuery = (query: any, hostId: string, startTs: string, duration
 
 export const createMeeting = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { host_id, meeting_time, duration_minutes, location, purpose, visitors } = req.body;
+    const { 
+      host_id, 
+      meeting_time, 
+      duration_minutes, 
+      location, 
+      purpose, 
+      visitors,
+      is_multi_day,
+      visit_start_date,
+      visit_end_date,
+      generate_individual_qr,
+      meeting_message_template
+    } = req.body;
     const requesterId = req.user!.id;
 
     // Validate input
@@ -53,6 +65,18 @@ export const createMeeting = async (req: AuthRequest, res: Response): Promise<vo
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Missing required fields'
+        }
+      });
+      return;
+    }
+
+    // Validate multi-day visit dates
+    if (is_multi_day && (!visit_start_date || !visit_end_date)) {
+      res.status(422).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Multi-day visit requires start and end dates'
         }
       });
       return;
@@ -80,59 +104,153 @@ export const createMeeting = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     // Create meeting
+    const meetingData: any = {
+      host_id,
+      meeting_time,
+      duration_minutes: requestedDuration,
+      location,
+      purpose,
+      status: 'scheduled',
+      is_multi_day: is_multi_day || false,
+      visit_start_date: visit_start_date || null,
+      visit_end_date: visit_end_date || null,
+      generate_individual_qr: generate_individual_qr !== undefined ? generate_individual_qr : true,
+      meeting_message_template: meeting_message_template || null
+    };
+
     const [meeting] = await db('meetings')
-      .insert({
-        host_id,
-        meeting_time,
-        duration_minutes: requestedDuration,
-        location,
-        purpose,
-        status: 'scheduled'
-      })
+      .insert(meetingData)
       .returning('*');
 
-    // Create visitors and generate QR codes
+    // Determine whether to generate individual QR codes or one shared QR
+    const generateIndividualQR = meeting.generate_individual_qr !== false;
+
+    // For shared QR mode, generate one QR code for the entire group
+    let sharedQRCode = null;
+    let sharedQRExpiresAt = null;
+    
+    if (!generateIndividualQR && visitors.length > 0) {
+      // Generate one QR code for the entire delegation
+      const firstVisitorId = uuidv4();
+      const qrExpiresAt = meeting.is_multi_day && meeting.visit_end_date
+        ? new Date(meeting.visit_end_date)
+        : new Date(meeting_time);
+      
+      if (!meeting.is_multi_day) {
+        qrExpiresAt.setHours(qrExpiresAt.getHours() + parseInt(process.env.QR_CODE_EXPIRY_HOURS || '24'));
+      } else {
+        qrExpiresAt.setHours(23, 59, 59, 999);
+      }
+
+      sharedQRCode = await QRCodeService.generateQRCode(
+        meeting.id, 
+        firstVisitorId,
+        visitors[0].email,
+        qrExpiresAt
+      );
+      sharedQRExpiresAt = qrExpiresAt;
+    }
+
+    // Create visitors and send notifications
     const qrCodes = [];
     const createdVisitors: any[] = [];
-    for (const visitor of visitors) {
+    for (let i = 0; i < visitors.length; i++) {
+      const visitor = visitors[i];
       const visitorId = uuidv4();
 
-      // Generate secure JWT-based QR code
-      const qrExpiresAt = new Date(meeting_time);
-      qrExpiresAt.setHours(qrExpiresAt.getHours() + parseInt(process.env.QR_CODE_EXPIRY_HOURS || '24'));
+      let qrCode = null;
+      let visitorData: any = {
+        id: visitorId,
+        meeting_id: meeting.id,
+        its_id: visitor.its_id || null,
+        name: visitor.name,
+        email: visitor.email,
+        phone: visitor.phone,
+        company: visitor.company,
+        city: visitor.city || null,
+        state: visitor.state || null,
+        visitor_type: visitor.visitor_type || 'guest',
+        multi_day_access: meeting.is_multi_day || false,
+        access_valid_from: meeting.visit_start_date || null,
+        access_valid_until: meeting.visit_end_date || null
+      };
 
-      const qrCode = await QRCodeService.generateQRCode(meeting.id, visitorId, visitor.email, qrExpiresAt);
+      if (generateIndividualQR) {
+        // Individual QR code for each visitor
+        const qrExpiresAt = meeting.is_multi_day && meeting.visit_end_date
+          ? new Date(meeting.visit_end_date)
+          : new Date(meeting_time);
+        
+        if (!meeting.is_multi_day) {
+          qrExpiresAt.setHours(qrExpiresAt.getHours() + parseInt(process.env.QR_CODE_EXPIRY_HOURS || '24'));
+        } else {
+          qrExpiresAt.setHours(23, 59, 59, 999);
+        }
 
-      // Insert visitor with the generated QR token (qr_code is UNIQUE+NOT NULL)
+        qrCode = await QRCodeService.generateQRCode(
+          meeting.id, 
+          visitorId, 
+          visitor.email, 
+          qrExpiresAt
+        );
+
+        visitorData.qr_code = qrCode.token;
+        visitorData.qr_code_expires_at = qrExpiresAt;
+      } else {
+        // Shared QR code for entire delegation
+        visitorData.qr_code = sharedQRCode?.token || `NO-QR-${visitorId}`;
+        visitorData.qr_code_expires_at = sharedQRExpiresAt || new Date('2099-12-31T23:59:59Z');
+      }
+
+      // Insert visitor
       const [visitorRecord] = await db('visitors')
-        .insert({
-          id: visitorId,
-          meeting_id: meeting.id,
-          its_id: visitor.its_id || null,
-          name: visitor.name,
-          email: visitor.email,
-          phone: visitor.phone,
-          company: visitor.company,
-          visitor_type: visitor.visitor_type || 'guest',
-          qr_code: qrCode.token,
-          qr_code_expires_at: qrExpiresAt
-        })
+        .insert(visitorData)
         .returning('*');
 
-      // Send notifications with QR code
-      await NotificationService.sendMeetingInvite(visitorRecord, meeting, qrCode.image);
+      // Send notifications
+      if (generateIndividualQR && qrCode) {
+        // Individual QR code - send to each visitor
+        await NotificationService.sendMeetingInvite(visitorRecord, meeting, qrCode.image, qrCode.qrId);
+        
+        qrCodes.push({
+          visitor_id: visitorRecord.id,
+          visitor_name: visitor.name,
+          qr_code: qrCode.image,
+          qr_token: qrCode.token,
+          qr_id: qrCode.qrId,
+          email_sent: true,
+          whatsapp_sent: true
+        });
+      } else if (!generateIndividualQR && sharedQRCode) {
+        // Shared QR code - send same QR to all visitors
+        await NotificationService.sendMeetingInvite(visitorRecord, meeting, sharedQRCode.image, sharedQRCode.qrId);
+        
+        qrCodes.push({
+          visitor_id: visitorRecord.id,
+          visitor_name: visitor.name,
+          qr_code: sharedQRCode.image,
+          qr_token: sharedQRCode.token,
+          qr_id: sharedQRCode.qrId,
+          email_sent: true,
+          whatsapp_sent: true,
+          shared: true
+        });
+      } else {
+        // No QR mode (fallback)
+        await NotificationService.sendMeetingInviteWithoutQR(visitorRecord, meeting, meeting_message_template);
+        
+        qrCodes.push({
+          visitor_id: visitorRecord.id,
+          visitor_name: visitor.name,
+          qr_code: null,
+          qr_token: null,
+          qr_id: null,
+          email_sent: true,
+          whatsapp_sent: true
+        });
+      }
 
       createdVisitors.push(visitorRecord);
-
-      qrCodes.push({
-        visitor_id: visitorRecord.id,
-        visitor_name: visitor.name,
-        qr_code: qrCode.image,
-        qr_token: qrCode.token,
-        qr_id: qrCode.qrId,
-        email_sent: true,
-        whatsapp_sent: true
-      });
     }
 
     // Notify host once with meeting summary
@@ -202,6 +320,30 @@ export const getMeetingAvailability = async (req: AuthRequest, res: Response): P
       bookedRanges.push({ start: startMin, end: startMin + dur });
     }
 
+    // Optional: availability blocks (time-off, busy periods).
+    // Some deployments may not have the `user_availability` table yet; treat as no blocks.
+    let availabilityBlocks: Array<{ start_time: any; end_time: any }> = [];
+    try {
+      availabilityBlocks = await db('user_availability')
+        .where('user_id', host_id)
+        .andWhereRaw(`start_time < ?::timestamp`, [dayEnd])
+        .andWhereRaw(`end_time > ?::timestamp`, [dayStart])
+        .select(['start_time', 'end_time']);
+    } catch (e: any) {
+      const code = e?.code;
+      if (code !== '42P01') {
+        throw e;
+      }
+    }
+
+    for (const block of availabilityBlocks as any[]) {
+      const blockStart = new Date(block.start_time);
+      const blockEnd = new Date(block.end_time);
+      const startMin = blockStart.getHours() * 60 + blockStart.getMinutes();
+      const endMin = blockEnd.getHours() * 60 + blockEnd.getMinutes();
+      bookedRanges.push({ start: startMin, end: endMin });
+    }
+
     const slots: Array<{ time: string; available: boolean }> = [];
     for (let start = BUSINESS_START_MINUTES; start <= BUSINESS_END_MINUTES - requestedDuration; start += slotSize) {
       const end = start + requestedDuration;
@@ -258,8 +400,7 @@ export const getMeetings = async (req: AuthRequest, res: Response) => {
       .leftJoin('users', 'meetings.host_id', 'users.id')
       .select([
         'meetings.*',
-        'users.first_name as host_first_name',
-        'users.last_name as host_last_name',
+        'users.name as host_name',
         'users.email as host_email'
       ])
       .orderBy(`meetings.${sort_by}`, sort_order);
@@ -291,13 +432,12 @@ export const getMeetings = async (req: AuthRequest, res: Response) => {
     const meetingIds = meetings.map((m: any) => m.id);
     const visitors = await db('visitors')
       .whereIn('meeting_id', meetingIds)
-      .select('meeting_id', 'full_name', 'email', 'check_in_time', 'check_out_time');
+      .select('meeting_id', 'name', 'email', 'check_in_time', 'check_out_time');
 
     const enrichedMeetings = meetings.map((meeting: any) => {
       const meetingVisitors = visitors.filter((v: any) => v.meeting_id === meeting.id);
       return {
         ...meeting,
-        host_name: `${meeting.host_first_name} ${meeting.host_last_name}`,
         visitor_count: meetingVisitors.length,
         visitors: meetingVisitors
       };
@@ -443,6 +583,24 @@ export const updateMeeting = async (req: AuthRequest, res: Response): Promise<vo
       updated_at: new Date()
     });
 
+    const updatedMeeting = await db('meetings').where({ id }).first();
+
+    if (updatedMeeting) {
+      const visitors = await db('visitors').where('meeting_id', id);
+
+      // Notify visitors on meaningful meeting changes
+      for (const visitor of visitors) {
+        await NotificationService.sendMeetingUpdateNoticeToVisitor(visitor, meeting, updatedMeeting);
+      }
+
+      // If meeting time changed, reschedule reminders by clearing sent markers
+      if (updates.meeting_time) {
+        await db('visitors')
+          .where('meeting_id', id)
+          .update({ reminder_sent_at: null, updated_at: new Date() });
+      }
+    }
+
     // Emit real-time update
     io.emit('meeting:updated', { meeting_id: id });
 
@@ -490,11 +648,17 @@ export const cancelMeeting = async (req: AuthRequest, res: Response): Promise<vo
       updated_at: new Date()
     });
 
-    // Notify visitors
+    // Notify visitors and collect their names
     const visitors = await db('visitors').where('meeting_id', id);
+    const visitorNames: string[] = [];
+    
     for (const visitor of visitors) {
       await NotificationService.sendCancellationNotice(visitor, meeting);
+      visitorNames.push(visitor.name);
     }
+
+    // Notify host about the cancellation
+    await NotificationService.sendHostCancellationNotice(meeting, visitorNames);
 
     res.json({
       success: true,
