@@ -22,6 +22,22 @@ if (!(Test-Path $PEM_KEY)) {
   exit 1
 }
 
+Write-Host "Step 0: Syncing code to GitHub..." -ForegroundColor Yellow
+try {
+  git add -A
+  $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+  git commit -m "Auto-commit before deployment - $timestamp" -q 2>$null
+  if ($LASTEXITCODE -eq 0) {
+    git push origin master -q
+    Write-Host "✅ Code synced to GitHub" -ForegroundColor Green
+  } else {
+    Write-Host "ℹ️ No changes to commit" -ForegroundColor Cyan
+  }
+} catch {
+  Write-Host "⚠️ Git sync skipped (not a fatal error)" -ForegroundColor Yellow
+}
+Write-Host ""
+
 Write-Host "Step 1: Building backend locally..." -ForegroundColor Yellow
 Push-Location ".\backend"
 npm install

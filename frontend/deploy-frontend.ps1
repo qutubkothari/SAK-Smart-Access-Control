@@ -15,6 +15,25 @@ $EC2_HOST = "3.108.52.219"
 $PEM_KEY = "..\sak-smart-access.pem"
 $REMOTE_PATH = "/var/www/sak-frontend"
 
+# Step 0: Git sync
+Write-Host "Step 0: Syncing code to GitHub..." -ForegroundColor Yellow
+Push-Location ".."
+try {
+  git add -A
+  $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+  git commit -m "Auto-commit before frontend deployment - $timestamp" -q 2>$null
+  if ($LASTEXITCODE -eq 0) {
+    git push origin master -q
+    Write-Host "✅ Code synced to GitHub" -ForegroundColor Green
+  } else {
+    Write-Host "ℹ️ No changes to commit" -ForegroundColor Cyan
+  }
+} catch {
+  Write-Host "⚠️ Git sync skipped (not a fatal error)" -ForegroundColor Yellow
+}
+Pop-Location
+Write-Host ""
+
 # Step 1: Build
 Write-Host "Step 1: Building React application..." -ForegroundColor Yellow
 npm run build
