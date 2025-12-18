@@ -137,4 +137,26 @@ export const notificationApi = {
   markAllAsRead: () => api.post('/notifications/read-all'),
 };
 
+// Access control APIs (employee NFC/card + manual ITS)
+export const accessApi = {
+  validate: (data: { employee_id?: string; card_number?: string; its_id?: string; floor_number: number }) =>
+    api.post('/access/validate', data),
+  log: (data: {
+    access_method: 'nfc' | 'card_number' | 'manual_its' | 'qr' | 'facial';
+    employee_id?: string;
+    card_number?: string;
+    its_id?: string;
+    floor_number?: number;
+    access_point_code?: string;
+    building?: string;
+    zone?: string;
+    is_entry?: boolean;
+  }) => api.post('/access/log', data),
+
+  getEmployeeFloors: (employeeId: string) => api.get(`/access/employee/${employeeId}/floors`),
+  grantFloor: (data: { employee_id: string; floor_number: number; building?: string; zone?: string }) =>
+    api.post('/access/grant', data),
+  revokeFloor: (accessId: string) => api.delete(`/access/${accessId}/revoke`),
+};
+
 export default api;

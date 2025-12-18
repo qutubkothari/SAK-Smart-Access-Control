@@ -22,7 +22,13 @@ export const LoginPage: React.FC = () => {
       const response = await apiClient.login({ its_id: itsId, password });
       
       if (!response.success || !response.data) {
-        throw new Error(response.error || 'Login failed');
+        // Extract error message from error object or string
+        const errorMessage = typeof response.error === 'object' && response.error?.message
+          ? response.error.message
+          : typeof response.error === 'string'
+          ? response.error
+          : 'Login failed. Please check your credentials.';
+        throw new Error(errorMessage);
       }
       
       // Update store
@@ -38,6 +44,15 @@ export const LoginPage: React.FC = () => {
           navigate('/receptionist');
           break;
         case 'security':
+          navigate('/receptionist');
+          break;
+        case 'secretary':
+          navigate('/secretary-dashboard');
+          break;
+        case 'employee':
+          navigate('/secretary-dashboard');
+          break;
+        case 'host':
           navigate('/dashboard');
           break;
         default:

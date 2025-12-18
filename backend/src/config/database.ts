@@ -11,7 +11,8 @@ const db = knex({
     user: process.env.DB_USER || 'postgres',
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME || 'sak_access_control',
-    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
+    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    timezone: process.env.TZ || 'Asia/Kolkata'
   },
   pool: {
     min: 2,

@@ -4,8 +4,8 @@ import db from '../config/database';
 // Get all departments
 export const getAllDepartments = async (_req: Request, res: Response) => {
   try {
-    const departments = await db('Departments as d')
-      .leftJoin('Users as u', function() {
+    const departments = await db('departments as d')
+      .leftJoin('users as u', function() {
         this.on('d.id', '=', 'u.department_id')
           .andOn('u.is_active', '=', db.raw('?', [true]));
       })
@@ -13,13 +13,11 @@ export const getAllDepartments = async (_req: Request, res: Response) => {
         'd.id',
         'd.name',
         'd.code',
-        'd.description',
-        'd.is_active',
         'd.created_at',
         'd.updated_at'
       )
       .count('u.id as employee_count')
-      .groupBy('d.id', 'd.name', 'd.code', 'd.description', 'd.is_active', 'd.created_at', 'd.updated_at')
+      .groupBy('d.id', 'd.name', 'd.code', 'd.created_at', 'd.updated_at')
       .orderBy('d.name', 'asc');
 
     res.json({
@@ -43,8 +41,8 @@ export const getDepartmentById = async (req: Request, res: Response): Promise<vo
   try {
     const { id } = req.params;
 
-    const departments = await db('Departments as d')
-      .leftJoin('Users as u', function() {
+    const departments = await db('departments as d')
+      .leftJoin('users as u', function() {
         this.on('d.id', '=', 'u.department_id')
           .andOn('u.is_active', '=', db.raw('?', [true]));
       })
@@ -52,14 +50,12 @@ export const getDepartmentById = async (req: Request, res: Response): Promise<vo
         'd.id',
         'd.name',
         'd.code',
-        'd.description',
-        'd.is_active',
         'd.created_at',
         'd.updated_at'
       )
       .count('u.id as employee_count')
       .where('d.id', id)
-      .groupBy('d.id', 'd.name', 'd.code', 'd.description', 'd.is_active', 'd.created_at', 'd.updated_at');
+      .groupBy('d.id', 'd.name', 'd.code', 'd.created_at', 'd.updated_at');
 
     if (departments.length === 0) {
       res.status(404).json({

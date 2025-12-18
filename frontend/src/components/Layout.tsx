@@ -9,7 +9,10 @@ import {
   LogOut, 
   Bell,
   Menu,
-  X
+  X,
+  Clock,
+  Building2,
+  BarChart3
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { socketService } from '../services/socket';
@@ -33,10 +36,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const navItems = React.useMemo(() => {
     const items = [
-      { name: 'Dashboard', path: '/dashboard', icon: Home, roles: ['admin', 'host', 'security', 'receptionist'] },
-      { name: 'Meetings', path: '/meetings', icon: Calendar, roles: ['admin', 'host'] },
+      { name: 'Dashboard', path: '/dashboard', icon: Home, roles: ['admin', 'host', 'receptionist'] },
+      { name: 'Secretary Dashboard', path: '/secretary-dashboard', icon: Home, roles: ['secretary'] },
+      { name: 'Employee Dashboard', path: '/employee-dashboard', icon: Home, roles: ['employee'] },
+      { name: 'Meetings', path: '/meetings', icon: Calendar, roles: ['admin', 'host', 'receptionist', 'secretary', 'employee'] },
+      { name: 'Book Meeting Room', path: '/meetings/internal/book', icon: Building2, roles: ['admin', 'host', 'receptionist', 'secretary'] },
+      { name: 'Availability', path: '/availability', icon: Clock, roles: ['admin', 'host', 'secretary', 'employee'] },
       { name: 'Check-In', path: '/receptionist', icon: UserCheck, roles: ['receptionist', 'security', 'admin'] },
-      { name: 'Visitors', path: '/visitors', icon: Users, roles: ['admin', 'receptionist'] },
+      { name: 'Visitors', path: '/visitors', icon: Users, roles: ['admin', 'receptionist', 'security'] },
+      { name: 'Analytics', path: '/analytics', icon: BarChart3, roles: ['admin', 'manager', 'hr', 'receptionist'] },
       { name: 'Users', path: '/admin/users', icon: Users, roles: ['admin'] },
       { name: 'Settings', path: '/settings', icon: Settings, roles: ['admin'] },
     ];

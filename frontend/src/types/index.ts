@@ -5,7 +5,8 @@ export interface User {
   name: string;
   phone?: string;
   departmentId?: string;
-  role: 'admin' | 'security' | 'receptionist' | 'host';
+  department_ids?: string[];
+  role: 'admin' | 'security' | 'receptionist' | 'host' | 'secretary' | 'employee';
   profilePhotoUrl?: string;
   isActive: boolean;
   createdAt: string;
@@ -14,6 +15,7 @@ export interface User {
 export interface Meeting {
   id: string;
   hostId: string;
+  hostName?: string;
   meetingTime: string;
   durationMinutes: number;
   location: string;
@@ -27,6 +29,7 @@ export interface Meeting {
   reminderSent: boolean;
   notes?: string;
   visitors?: Visitor[];
+  visitorCount?: number;
   host?: User;
   createdAt: string;
 }
@@ -38,6 +41,8 @@ export interface Visitor {
   email: string;
   phone: string;
   company?: string;
+  city?: string;
+  state?: string;
   visitorType: 'guest' | 'vendor' | 'contractor' | 'vip';
   qrCode: string;
   qrCodeExpiresAt: string;
@@ -106,10 +111,17 @@ export interface CreateMeetingDto {
     its_id?: string;
     name: string;
     email: string;
-    phone: string;
+    phone?: string;
     company?: string;
+    city?: string;
+    state?: string;
     visitor_type?: string;
   }[];
+  is_multi_day?: boolean;
+  visit_start_date?: string;
+  visit_end_date?: string;
+  generate_individual_qr?: boolean;
+  meeting_message_template?: string;
 }
 
 export interface HostSearchResult {

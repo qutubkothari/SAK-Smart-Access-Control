@@ -4,6 +4,7 @@ import { authenticate, authorize } from '../middleware/auth';
 import {
   checkInVisitor,
   checkOutVisitor,
+  checkOutVisitorByQR,
   getVisitors,
   getVisitorById,
   lookupVisitor
@@ -29,7 +30,8 @@ const upload = multer({
 router.use(authenticate);
 
 router.post('/check-in', authorize('receptionist', 'security', 'admin'), upload.single('photo'), checkInVisitor);
-router.post('/:id/check-out', authorize('receptionist', 'admin'), checkOutVisitor);
+router.post('/check-out', authorize('receptionist', 'security', 'admin'), checkOutVisitorByQR);
+router.post('/:id/check-out', authorize('receptionist', 'security', 'admin'), checkOutVisitor);
 router.get('/lookup', lookupVisitor);
 router.get('/', authorize('receptionist', 'admin', 'security'), getVisitors);
 router.get('/:id', authorize('receptionist', 'admin', 'security'), getVisitorById);

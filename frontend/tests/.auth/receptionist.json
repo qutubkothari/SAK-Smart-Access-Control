@@ -1,0 +1,22 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "https://sac.saksolution.com",
+      "localStorage": [
+        {
+          "name": "accessToken",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImI0NjFkNGUxLWFiNDEtNGJhNi05ZjVlLTJlYzI1ZDYxMTQ2ZSIsIml0c19pZCI6IklUUzAwMDAwMiIsImVtYWlsIjoicmVjZXB0aW9uQHNhay1hY2Nlc3MuY29tIiwicm9sZSI6InJlY2VwdGlvbmlzdCIsImlhdCI6MTc2NTk0NDY5NywiZXhwIjoxNzY2MDMxMDk3fQ.CHWL66Mm6QsyZ1hikJkgtvcQNwks3VT63oYVVwCSud0"
+        },
+        {
+          "name": "auth-user",
+          "value": "{\"id\":\"b461d4e1-ab41-4ba6-9f5e-2ec25d61146e\",\"its_id\":\"ITS000002\",\"name\":\"Reception Desk\",\"email\":\"reception@sak-access.com\",\"role\":\"receptionist\",\"department\":\"a3e15b6d-e833-4ee1-b587-ddfa74efbf6a\"}"
+        },
+        {
+          "name": "auth-token",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImI0NjFkNGUxLWFiNDEtNGJhNi05ZjVlLTJlYzI1ZDYxMTQ2ZSIsIml0c19pZCI6IklUUzAwMDAwMiIsImVtYWlsIjoicmVjZXB0aW9uQHNhay1hY2Nlc3MuY29tIiwicm9sZSI6InJlY2VwdGlvbmlzdCIsImlhdCI6MTc2NTk0NDY5NywiZXhwIjoxNzY2MDMxMDk3fQ.CHWL66Mm6QsyZ1hikJkgtvcQNwks3VT63oYVVwCSud0"
+        }
+      ]
+    }
+  ]
+}

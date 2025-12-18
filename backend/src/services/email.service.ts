@@ -274,6 +274,247 @@ class EmailService {
       html
     });
   }
+
+  /**
+   * Send leave application notification to manager
+   */
+  async sendLeaveApplicationNotification(
+    managerEmail: string,
+    employeeName: string,
+    leaveType: string,
+    startDate: string,
+    endDate: string,
+    reason: string
+  ): Promise<boolean> {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #667eea; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+          .content { background: #f9f9f9; padding: 20px; border-radius: 0 0 5px 5px; }
+          .details { background: white; padding: 15px; margin: 15px 0; border-left: 4px solid #667eea; }
+          .button { display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 10px 5px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h2>📋 New Leave Application</h2>
+          </div>
+          <div class="content">
+            <p><strong>${employeeName}</strong> has submitted a leave application requiring your approval.</p>
+            <div class="details">
+              <p><strong>Leave Type:</strong> ${leaveType.charAt(0).toUpperCase() + leaveType.slice(1)}</p>
+              <p><strong>Start Date:</strong> ${startDate}</p>
+              <p><strong>End Date:</strong> ${endDate}</p>
+              <p><strong>Reason:</strong> ${reason}</p>
+            </div>
+            <p>Please review and take appropriate action.</p>
+            <div style="text-align: center; margin-top: 20px;">
+              <a href="${process.env.FRONTEND_URL}/admin/leaves" class="button">Review Application</a>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return await this.sendEmail({
+      to: managerEmail,
+      subject: `Leave Application from ${employeeName}`,
+      html
+    });
+  }
+
+  /**
+   * Send leave status update to employee
+   */
+  async sendLeaveStatusUpdate(
+    employeeEmail: string,
+    status: string,
+    leaveType: string,
+    startDate: string,
+    endDate: string,
+    reviewNotes?: string
+  ): Promise<boolean> {
+    const statusColors = {
+      approved: '#10b981',
+      rejected: '#ef4444'
+    };
+    const statusIcons = {
+      approved: '✅',
+      rejected: '❌'
+    };
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: ${statusColors[status as keyof typeof statusColors]}; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+          .content { background: #f9f9f9; padding: 20px; border-radius: 0 0 5px 5px; }
+          .details { background: white; padding: 15px; margin: 15px 0; border-left: 4px solid ${statusColors[status as keyof typeof statusColors]}; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h2>${statusIcons[status as keyof typeof statusIcons]} Leave ${status.charAt(0).toUpperCase() + status.slice(1)}</h2>
+          </div>
+          <div class="content">
+            <p>Your leave application has been <strong>${status}</strong>.</p>
+            <div class="details">
+              <p><strong>Leave Type:</strong> ${leaveType.charAt(0).toUpperCase() + leaveType.slice(1)}</p>
+              <p><strong>Start Date:</strong> ${startDate}</p>
+              <p><strong>End Date:</strong> ${endDate}</p>
+              ${reviewNotes ? `<p><strong>Manager's Notes:</strong> ${reviewNotes}</p>` : ''}
+            </div>
+            ${status === 'approved' ? '<p>Please mark your calendar accordingly. Have a great time!</p>' : '<p>If you have any questions, please contact your manager.</p>'}
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return await this.sendEmail({
+      to: employeeEmail,
+      subject: `Leave Application ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+      html
+    });
+  }
+
+  /**
+   * Send daily attendance summary to managers
+   */
+  async sendDailyAttendanceSummary(
+    managerEmail: string,
+    date: string,
+    summary: {
+      department: string;
+      total_employees: number;
+      present: number;
+      late: number;
+      absent: number;
+      on_leave: number;
+    }
+  ): Promise<boolean> {
+    const attendanceRate = ((summary.present + summary.late) / summary.total_employees * 100).toFixed(1);
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #667eea; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+          .content { background: #f9f9f9; padding: 20px; border-radius: 0 0 5px 5px; }
+          .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 20px 0; }
+          .stat-box { background: white; padding: 15px; text-align: center; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          .stat-value { font-size: 32px; font-weight: bold; color: #667eea; }
+          .stat-label { font-size: 14px; color: #666; margin-top: 5px; }
+          .attendance-rate { background: ${parseFloat(attendanceRate) >= 90 ? '#10b981' : parseFloat(attendanceRate) >= 75 ? '#f59e0b' : '#ef4444'}; color: white; padding: 20px; text-align: center; border-radius: 5px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h2>📊 Daily Attendance Summary</h2>
+            <p>${summary.department} Department</p>
+            <p>${date}</p>
+          </div>
+          <div class="content">
+            <div class="attendance-rate">
+              <h3 style="margin: 0;">Attendance Rate</h3>
+              <div style="font-size: 48px; font-weight: bold; margin: 10px 0;">${attendanceRate}%</div>
+            </div>
+            <div class="stats">
+              <div class="stat-box">
+                <div class="stat-value" style="color: #10b981;">${summary.present}</div>
+                <div class="stat-label">Present</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-value" style="color: #f59e0b;">${summary.late}</div>
+                <div class="stat-label">Late</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-value" style="color: #ef4444;">${summary.absent}</div>
+                <div class="stat-label">Absent</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-value" style="color: #667eea;">${summary.on_leave}</div>
+                <div class="stat-label">On Leave</div>
+              </div>
+            </div>
+            <p style="text-align: center; margin-top: 20px;">
+              <a href="${process.env.FRONTEND_URL}/reports/attendance" style="display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 5px;">View Detailed Report</a>
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return await this.sendEmail({
+      to: managerEmail,
+      subject: `Daily Attendance Summary - ${summary.department} - ${date}`,
+      html
+    });
+  }
+
+  /**
+   * Send late arrival alert to employee
+   */
+  async sendLateArrivalAlert(
+    employeeEmail: string,
+    employeeName: string,
+    date: string,
+    checkInTime: string,
+    lateBy: number
+  ): Promise<boolean> {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #f59e0b; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+          .content { background: #f9f9f9; padding: 20px; border-radius: 0 0 5px 5px; }
+          .alert-box { background: #fff3cd; border-left: 4px solid #f59e0b; padding: 15px; margin: 15px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h2>⏰ Late Arrival Notification</h2>
+          </div>
+          <div class="content">
+            <p>Dear ${employeeName},</p>
+            <div class="alert-box">
+              <p><strong>Date:</strong> ${date}</p>
+              <p><strong>Check-in Time:</strong> ${checkInTime}</p>
+              <p><strong>Late By:</strong> ${lateBy} minutes</p>
+            </div>
+            <p>This is a friendly reminder to arrive on time. Punctuality is important for maintaining productivity and team coordination.</p>
+            <p>If you have recurring timing issues, please discuss with your manager for possible shift adjustments.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return await this.sendEmail({
+      to: employeeEmail,
+      subject: `Late Arrival Notice - ${date}`,
+      html
+    });
+  }
 }
 
 export default new EmailService();

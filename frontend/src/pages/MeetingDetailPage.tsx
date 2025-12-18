@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { meetingApi } from '../services/api';
 import { QrCode, Download, Calendar, Clock, MapPin, Users, CheckCircle, XCircle, Mail, Phone } from 'lucide-react';
-import QRCode from 'qrcode';
 import { formatDateTime, formatDuration } from '../utils/formatters';
 import type { Meeting } from '../types';
 
@@ -12,67 +11,16 @@ export const MeetingDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [loading, setLoading] = useState(true);
-  const [generatedQrUrl, setGeneratedQrUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) loadMeeting(id);
   }, [id]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const generate = async () => {
-      setGeneratedQrUrl(null);
-      if (!meeting) return;
-      if (meeting.qrCodeUrl) return;
-
-      const token = meeting.visitors?.[0]?.qrCode;
-      if (!token) return;
-
-      // If the backend didn't provide qr_code_url, avoid generating a dense QR from the full JWT.
-      // Prefer the JWT jti (short id) if available.
-      const extractJwtJti = (jwtToken: string): string | null => {
-        try {
-          const parts = String(jwtToken || '').split('.');
-          if (parts.length !== 3) return null;
-          const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-          const pad = '='.repeat((4 - (b64.length % 4)) % 4);
-          const json = atob(b64 + pad);
-          const payload = JSON.parse(json);
-          return typeof payload?.jti === 'string' && payload.jti.trim() ? payload.jti.trim() : null;
-        } catch {
-          return null;
-        }
-      };
-
-      try {
-        const toDataURL = (QRCode as any)?.toDataURL ?? (QRCode as any)?.default?.toDataURL;
-        if (!toDataURL) throw new Error('QRCode.toDataURL is not available');
-
-        const qrPayload = extractJwtJti(token) ?? token;
-        const url = await toDataURL(qrPayload, {
-          errorCorrectionLevel: 'H',
-          type: 'image/png',
-          width: 400,
-          margin: 2,
-        });
-        if (!cancelled) setGeneratedQrUrl(url);
-      } catch (e) {
-        console.error('Failed to generate QR code image:', e);
-      }
-    };
-
-    generate();
-    return () => {
-      cancelled = true;
-    };
-  }, [meeting]);
-
   const loadMeeting = async (meetingId: string) => {
     try {
       const response = await meetingApi.getById(meetingId);
       const payload: any = response?.data;
-      const data: any = payload?.data ?? payload;
+      const data: any = payload?.data || payload;
 
       const normalizedVisitors = Array.isArray(data?.visitors)
         ? data.visitors.map((v: any) => ({
@@ -82,6 +30,8 @@ export const MeetingDetailPage: React.FC = () => {
             email: v.email,
             phone: v.phone,
             company: v.company ?? undefined,
+            city: v.city ?? undefined,
+            state: v.state ?? undefined,
             visitorType: v.visitorType ?? v.visitor_type ?? 'guest',
             qrCode: v.qrCode ?? v.qr_code,
             qrCodeExpiresAt: v.qrCodeExpiresAt ?? v.qr_code_expires_at,
@@ -273,6 +223,11 @@ export const MeetingDetailPage: React.FC = () => {
                               {visitor.phone}
                             </p>
                             {visitor.company && <p>{visitor.company}</p>}
+                            {(visitor.city || visitor.state) && (
+                              <p>
+                                {[visitor.city, visitor.state].filter(Boolean).join(', ')}
+                              </p>
+                            )}
                           </div>
                           {visitor.checkInTime && (
                             <p className="text-xs text-green-600 mt-2">
@@ -303,18 +258,18 @@ export const MeetingDetailPage: React.FC = () => {
                 QR Code
               </h2>
 
-              {(meeting.qrCodeUrl || generatedQrUrl) ? (
+              {meeting.qrCodeUrl ? (
                 <div className="space-y-4">
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <img
-                      src={meeting.qrCodeUrl || generatedQrUrl || ''}
+                      src={meeting.qrCodeUrl || ''}
                       alt="Meeting QR Code"
                       className="w-full"
                     />
                   </div>
 
                   <a
-                    href={meeting.qrCodeUrl || generatedQrUrl || '#'}
+                    href={meeting.qrCodeUrl || '#'}
                     download={`meeting-${meeting.id}-visitor-${meeting.visitors?.[0]?.id || 'qr'}.png`}
                     className="btn-primary w-full flex items-center justify-center gap-2"
                   >

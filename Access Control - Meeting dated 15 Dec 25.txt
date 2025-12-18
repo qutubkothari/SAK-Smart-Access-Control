@@ -1,0 +1,32 @@
+Meeting  Notes
+
+Date: 15th Dec. 2025
+Attendees:	Shk Burhanuddin Jamali
+		Hussain Noman
+Subject:	Access Control System Walkthrough	
+
+Following  Data has to be linked to Office Secretary
+- Hosts
+o Slot Availability by Host
+- Location
+- Visitor Type
+- Meeting Policy ( Allowed 30 minutes prior to meeting or late by 15 min meeting time)
+
+QR Code should have the information of Visitor, Host, Meeting time, Location
+On Cancellation of the meeting – Message should be sent to Host and Visitor
+Provision of Adhoc Visits ( Angadiya) to capture Host, Visitor Badge, time, 
+Provision for printing the QR Code on portable thermal printer
+Check out Scan 
+Provision for Multiple entry within the meeting time frame
+Provision for DIY role where the Host can setup his own meetings and manage his availability.
+
+Taher Godhrawala Inputs
+Provision for Staff Access as per data
+Provision for Internal Meetings ( Already Available)
+Provision to allow Visitor for Multiple Days
+Mumineen Access via RFID
+Security on main Door and Floors
+RFID scanner with Security to allow or disallow
+
+
+

@@ -48,7 +48,7 @@ class QRCodeService {
       // Generate unique QR ID (jti - JWT ID)
       const qrId = this.generateShortQrId();
 
-      // Create JWT payload with security claims
+      // Create JWT payload with security claims and meeting details
       const payload = {
         iss: 'SAK-Access-Control',           // Issuer
         sub: visitorId,                      // Subject (visitor ID)
@@ -154,10 +154,8 @@ class QRCodeService {
       return { error: 'QR_CODE_ALREADY_USED', message: 'This QR code has already been scanned' };
     }
 
-    qrInfo.used = true;
-    qrInfo.used_at = new Date().toISOString();
-    await this.markQrUsed(qrId, qrInfo);
-
+    // Don't mark as used yet - only mark after successful check-in
+    // This allows re-scanning if first attempt fails (e.g., too early)
     logger.info(`QR id verified successfully: ${qrId}`);
 
     return {
@@ -208,11 +206,8 @@ class QRCodeService {
         return { error: 'QR_CODE_ALREADY_USED', message: 'This QR code has already been scanned' };
       }
 
-      // Mark QR as used
-      qrInfo.used = true;
-      qrInfo.used_at = new Date().toISOString();
-      await this.markQrUsed(decoded.jti, qrInfo);
-
+      // Don't mark as used yet - only mark after successful check-in
+      // This allows re-scanning if first attempt fails (e.g., too early)
       logger.info(`QR code verified successfully: ${decoded.jti}`);
 
       return {
@@ -245,6 +240,31 @@ class QRCodeService {
       return result > 0;
     } catch (error) {
       logger.error('Error revoking QR code:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Mark QR code as used after successful check-in
+   * This is called AFTER validation passes to prevent replay attacks
+   */
+  async markQrCodeAsUsed(qrId: string): Promise<boolean> {
+    try {
+      const qrData = await redis.get(`qr:${qrId}`);
+      if (!qrData) {
+        logger.warn(`Cannot mark QR as used - QR not found: ${qrId}`);
+        return false;
+      }
+
+      const qrInfo = JSON.parse(qrData);
+      qrInfo.used = true;
+      qrInfo.used_at = new Date().toISOString();
+      
+      await this.markQrUsed(qrId, qrInfo);
+      logger.info(`QR code marked as used: ${qrId}`);
+      return true;
+    } catch (error) {
+      logger.error('Error marking QR code as used:', error);
       return false;
     }
   }

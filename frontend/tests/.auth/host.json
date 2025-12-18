@@ -1,0 +1,22 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "https://sac.saksolution.com",
+      "localStorage": [
+        {
+          "name": "accessToken",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjA3MGRlMTEwLWZiYWQtNGNiYy04ZTA4LTE3MmJmZDNhZmI3YyIsIml0c19pZCI6IklUUzEwMDAwMSIsImVtYWlsIjoiam9obi5kb2VAY29tcGFueS5jb20iLCJyb2xlIjoiaG9zdCIsImlhdCI6MTc2NTk0NDY5NiwiZXhwIjoxNzY2MDMxMDk2fQ.NSEVd5HMs3yTHE7C-XlFVNRALLgGSDdk9q48Zvfpy4I"
+        },
+        {
+          "name": "auth-user",
+          "value": "{\"id\":\"070de110-fbad-4cbc-8e08-172bfd3afb7c\",\"its_id\":\"ITS100001\",\"name\":\"John Doe\",\"email\":\"john.doe@company.com\",\"role\":\"host\",\"department\":\"b7a44fdc-c5dc-4fb9-8765-42e7d01e9c7c\"}"
+        },
+        {
+          "name": "auth-token",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjA3MGRlMTEwLWZiYWQtNGNiYy04ZTA4LTE3MmJmZDNhZmI3YyIsIml0c19pZCI6IklUUzEwMDAwMSIsImVtYWlsIjoiam9obi5kb2VAY29tcGFueS5jb20iLCJyb2xlIjoiaG9zdCIsImlhdCI6MTc2NTk0NDY5NiwiZXhwIjoxNzY2MDMxMDk2fQ.NSEVd5HMs3yTHE7C-XlFVNRALLgGSDdk9q48Zvfpy4I"
+        }
+      ]
+    }
+  ]
+}

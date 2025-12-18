@@ -2,14 +2,18 @@ import React, { useState } from 'react';
 import { UserPlus, Mail, Phone, Building, Calendar, FileText, Camera, CheckCircle, AlertCircle } from 'lucide-react';
 import { WebcamCapture, PhotoUpload } from '../components/PhotoCapture';
 import axios from 'axios';
+import { INDIA_CITY_SUGGESTIONS, INDIA_STATES_AND_UTS } from '../data/indiaGeo';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+// Prefer relative URL so the same build works locally + behind Nginx on EC2.
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 interface PreRegisterForm {
   name: string;
   email: string;
   phone: string;
   company: string;
+  city: string;
+  state: string;
   visitor_type: string;
   host_its_id: string;
   visit_date: string;
@@ -33,6 +37,8 @@ export const VisitorPreRegistrationPage: React.FC = () => {
     email: '',
     phone: '',
     company: '',
+    city: '',
+    state: '',
     visitor_type: 'guest',
     host_its_id: '',
     visit_date: '',
@@ -127,12 +133,12 @@ export const VisitorPreRegistrationPage: React.FC = () => {
       // Submit pre-registration
       const response = await axios.post(`${API_BASE_URL}/preregister/register`, formData);
 
-      if (response.data.success) {
+      if (response.data?.success) {
         setSuccess(true);
-        setQrCode(response.data.data.qr_code);
+        setQrCode(response.data?.data?.qr_code || response.data?.qr_code);
 
         // Upload photo if captured
-        if (photoDataUrl && response.data.data.visitor_id) {
+        if (photoDataUrl && (response.data?.data?.visitor_id || response.data?.visitor_id)) {
           try {
             const photoBlob = await fetch(photoDataUrl).then(r => r.blob());
             const photoFile = new File([photoBlob], 'visitor-photo.jpg', { type: 'image/jpeg' });
@@ -141,7 +147,7 @@ export const VisitorPreRegistrationPage: React.FC = () => {
             formData.append('photo', photoFile);
 
             await axios.post(
-              `${API_BASE_URL}/preregister/visitors/${response.data.data.visitor_id}/photo`,
+              `${API_BASE_URL}/preregister/visitors/${response.data?.data?.visitor_id || response.data?.visitor_id}/photo`,
               formData,
               {
                 headers: { 'Content-Type': 'multipart/form-data' }
@@ -212,6 +218,16 @@ export const VisitorPreRegistrationPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 py-12 px-4">
+      <datalist id="city-suggestions">
+        {INDIA_CITY_SUGGESTIONS.map((c) => (
+          <option key={c} value={c} />
+        ))}
+      </datalist>
+      <datalist id="state-suggestions">
+        {INDIA_STATES_AND_UTS.map((s) => (
+          <option key={s} value={s} />
+        ))}
+      </datalist>
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Visitor Pre-Registration</h1>
@@ -316,6 +332,36 @@ export const VisitorPreRegistrationPage: React.FC = () => {
                     placeholder="ABC Corporation"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  City
+                </label>
+                <input
+                  type="text"
+                  name="city"
+                  list="city-suggestions"
+                  value={formData.city}
+                  onChange={handleInputChange}
+                  className="input-field"
+                  placeholder="e.g., Mumbai"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  State
+                </label>
+                <input
+                  type="text"
+                  name="state"
+                  list="state-suggestions"
+                  value={formData.state}
+                  onChange={handleInputChange}
+                  className="input-field"
+                  placeholder="e.g., Maharashtra"
+                />
               </div>
 
               <div>

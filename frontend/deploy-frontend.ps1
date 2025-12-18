@@ -1,5 +1,9 @@
 # SAK Smart Access Control - Frontend Deployment Script for EC2 (PowerShell)
 
+param(
+    [switch]$ConfigureNginx
+)
+
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "SAK Frontend Deployment to EC2" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan
@@ -36,6 +40,12 @@ Write-Host "✅ Files uploaded successfully" -ForegroundColor Green
 Write-Host ""
 
 # Step 4: Configure Nginx
+if (-not $ConfigureNginx) {
+    Write-Host "Step 4: Skipping Nginx configuration (pass -ConfigureNginx to enable)..." -ForegroundColor Yellow
+    Write-Host "✅ Deployment completed without Nginx changes" -ForegroundColor Green
+    exit 0
+}
+
 Write-Host "Step 4: Configuring Nginx..." -ForegroundColor Yellow
 
 $nginxConfig = @'

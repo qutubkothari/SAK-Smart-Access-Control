@@ -6,7 +6,9 @@ import {
   getUserById,
   updateUser,
   deleteUser,
-  searchHosts
+  searchHosts,
+  lookupUserByITS,
+  getMyEmployees
 } from '../controllers/user.controller';
 
 const router = Router();
@@ -14,6 +16,8 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/search-hosts', searchHosts);
+router.get('/lookup/:its_id', lookupUserByITS); // ITS lookup for internal meetings
+router.get('/my-employees', authorize('secretary'), getMyEmployees); // Secretary's assigned employees
 
 router.use(authorize('admin'));
 

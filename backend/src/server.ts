@@ -44,6 +44,7 @@ import healthRoutes from './routes/health.routes';
 import backupRoutes from './routes/backup.routes';
 import securityRoutes from './routes/security.routes';
 import analyticsRoutes from './routes/analytics.routes';
+import secretaryRoutes from './routes/secretary.routes';
 
 // Load environment variables
 dotenv.config();
@@ -145,6 +146,7 @@ app.use(`${API_PREFIX}/audit`, auditRoutes);
 app.use(`${API_PREFIX}/backup`, backupRoutes);
 app.use(`${API_PREFIX}/security`, securityRoutes);
 app.use(`${API_PREFIX}/analytics`, analyticsRoutes);
+app.use(`${API_PREFIX}/secretaries`, secretaryRoutes);
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {

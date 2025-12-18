@@ -70,13 +70,11 @@ const buildStats = async (opts: { hostId?: string }) => {
 
   const upcomingMeetingsQuery = db('meetings')
     .leftJoin('users', 'meetings.host_id', 'users.id')
-    .where('meetings.meeting_time', '>=', today)
-    .where('meetings.meeting_time', '<', tomorrow)
+    .where('meetings.meeting_time', '>=', new Date())
     .whereNot('meetings.status', 'cancelled')
     .select([
       'meetings.*',
-      'users.first_name as host_first_name',
-      'users.last_name as host_last_name'
+      'users.name as host_name'
     ])
     .orderBy('meetings.meeting_time', 'asc')
     .limit(5);
@@ -88,14 +86,11 @@ const buildStats = async (opts: { hostId?: string }) => {
     const meetingIds = upcomingMeetings.map((m: any) => m.id);
     const visitors = await db('visitors')
       .whereIn('meeting_id', meetingIds)
-      .select('meeting_id', 'full_name');
+      .select('meeting_id', 'name');
 
     upcomingMeetings.forEach((meeting: any) => {
       const meetingVisitors = visitors.filter((v: any) => v.meeting_id === meeting.id);
-      meeting.host_name = `${meeting.host_first_name} ${meeting.host_last_name}`;
-      meeting.visitor_names = meetingVisitors.map((v: any) => v.full_name).join(', ');
-      delete meeting.host_first_name;
-      delete meeting.host_last_name;
+      meeting.visitor_names = meetingVisitors.map((v: any) => v.name).join(', ');
     });
   }
 
@@ -107,21 +102,13 @@ const buildStats = async (opts: { hostId?: string }) => {
       'meetings.meeting_time',
       'meetings.location',
       'meetings.host_id',
-      'users.first_name as host_first_name',
-      'users.last_name as host_last_name'
+      'users.name as host_name'
     )
     .whereNotNull('visitors.check_in_time')
     .orderBy('visitors.check_in_time', 'desc')
     .limit(5);
 
   const recentVisitors = await (hostId ? recentVisitorsQuery.andWhere('meetings.host_id', hostId) : recentVisitorsQuery);
-
-  // Enrich recent visitors with host name
-  recentVisitors.forEach((visitor: any) => {
-    visitor.host_name = `${visitor.host_first_name} ${visitor.host_last_name}`;
-    delete visitor.host_first_name;
-    delete visitor.host_last_name;
-  });
 
   // This week's stats (legacy)
   const weekStart = new Date(today);

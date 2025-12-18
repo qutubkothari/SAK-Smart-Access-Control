@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Plus, Search } from 'lucide-react';
+import { Calendar, Plus, Search, Filter, ArrowUpDown } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { meetingApi } from '../services/api';
 import { socketService } from '../services/socket';
@@ -11,6 +11,9 @@ export const MeetingsPage: React.FC = () => {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('meeting_time');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const normalizeMeeting = (m: any): Meeting => ({
     id: m?.id,
@@ -39,7 +42,7 @@ export const MeetingsPage: React.FC = () => {
       try {
         const res = await meetingApi.getAll();
         const payload: any = res?.data;
-        const list = Array.isArray(payload) ? payload : (payload?.data ?? []);
+        const list = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []);
         const normalized = Array.isArray(list) ? list.map(normalizeMeeting) : [];
         setMeetings(normalized);
       } catch (e) {
@@ -70,15 +73,48 @@ export const MeetingsPage: React.FC = () => {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = Array.isArray(meetings) ? meetings : [];
-    if (!q) return list;
-    return list.filter((m) => {
-      const title = (m as any).title ?? m.purpose ?? 'Meeting';
-      const location = m.location ?? '';
-      const status = m.status ?? '';
-      return [title, location, status].some((v) => String(v).toLowerCase().includes(q));
+    let list = Array.isArray(meetings) ? meetings : [];
+    
+    // Filter by status
+    if (statusFilter !== 'all') {
+      list = list.filter((m) => m.status === statusFilter);
+    }
+    
+    // Filter by search query
+    if (q) {
+      list = list.filter((m) => {
+        const title = (m as any).title ?? m.purpose ?? 'Meeting';
+        const location = m.location ?? '';
+        const hostName = m.hostName ?? '';
+        return [title, location, hostName].some((v) => String(v).toLowerCase().includes(q));
+      });
+    }
+    
+    // Sort
+    list.sort((a, b) => {
+      let aVal: any, bVal: any;
+      if (sortBy === 'meeting_time') {
+        aVal = new Date(a.meetingTime).getTime();
+        bVal = new Date(b.meetingTime).getTime();
+      } else if (sortBy === 'location') {
+        aVal = a.location?.toLowerCase() || '';
+        bVal = b.location?.toLowerCase() || '';
+      } else if (sortBy === 'status') {
+        aVal = a.status || '';
+        bVal = b.status || '';
+      } else {
+        return 0;
+      }
+      
+      if (sortOrder === 'asc') {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
     });
-  }, [meetings, query]);
+    
+    return list;
+  }, [meetings, query, statusFilter, sortBy, sortOrder]);
 
   return (
     <Layout>
@@ -97,19 +133,60 @@ export const MeetingsPage: React.FC = () => {
       </div>
 
       <div className="card">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-          <div className="flex items-center gap-2 text-gray-900 font-medium">
-            <Calendar size={18} className="text-primary-700" />
-            All Meetings
+        <div className="flex flex-col gap-3 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-2 text-gray-900 font-medium">
+              <Calendar size={18} className="text-primary-700" />
+              All Meetings
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+              <div className="relative flex-1 sm:w-80">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="input-field pl-9 w-full"
+                  placeholder="Search meetings..."
+                />
+              </div>
+            </div>
           </div>
-          <div className="relative w-full sm:w-80">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="input-field pl-9"
-              placeholder="Search meetings..."
-            />
+          
+          <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex items-center gap-2">
+              <Filter size={16} className="text-gray-500" />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="all">All Status</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <ArrowUpDown size={16} className="text-gray-500" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="meeting_time">Date</option>
+                <option value="location">Location</option>
+                <option value="status">Status</option>
+              </select>
+              <button
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+              >
+                {sortOrder === 'asc' ? '↑' : '↓'}
+              </button>
+            </div>
           </div>
         </div>
 

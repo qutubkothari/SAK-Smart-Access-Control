@@ -1,0 +1,22 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "https://sac.saksolution.com",
+      "localStorage": [
+        {
+          "name": "accessToken",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjE5MGU5ZmI5LTU4YTAtNDRlMC1hYmQ1LWY0ZmJhM2Y1NDcxZSIsIml0c19pZCI6IklUUzAwMDAwMSIsImVtYWlsIjoiYWRtaW5Ac2FrLWFjY2Vzcy5jb20iLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3NjU5NDQ2OTYsImV4cCI6MTc2NjAzMTA5Nn0.qHH4CbiO_lsS--zQ1iGle38gWO27Mf6ct94RcKvXcBs"
+        },
+        {
+          "name": "auth-user",
+          "value": "{\"id\":\"190e9fb9-58a0-44e0-abd5-f4fba3f5471e\",\"its_id\":\"ITS000001\",\"name\":\"System Administrator\",\"email\":\"admin@sak-access.com\",\"role\":\"admin\",\"department\":\"a3e15b6d-e833-4ee1-b587-ddfa74efbf6a\"}"
+        },
+        {
+          "name": "auth-token",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjE5MGU5ZmI5LTU4YTAtNDRlMC1hYmQ1LWY0ZmJhM2Y1NDcxZSIsIml0c19pZCI6IklUUzAwMDAwMSIsImVtYWlsIjoiYWRtaW5Ac2FrLWFjY2Vzcy5jb20iLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3NjU5NDQ2OTYsImV4cCI6MTc2NjAzMTA5Nn0.qHH4CbiO_lsS--zQ1iGle38gWO27Mf6ct94RcKvXcBs"
+        }
+      ]
+    }
+  ]
+}

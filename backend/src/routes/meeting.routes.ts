@@ -4,6 +4,7 @@ import {
   createMeeting,
   getMeetingAvailability,
   getMeetings,
+  getMyMeetings,
   getMeetingById,
   updateMeeting,
   cancelMeeting,
@@ -18,6 +19,7 @@ router.use(authenticate);
 router.post('/', authorize('host', 'admin'), createMeeting);
 router.get('/', getMeetings);
 router.get('/availability', getMeetingAvailability);
+router.get('/my-meetings', getMyMeetings);
 router.get('/:id', getMeetingById);
 router.put('/:id', authorize('host', 'admin'), updateMeeting);
 router.delete('/:id', authorize('host', 'admin'), cancelMeeting);

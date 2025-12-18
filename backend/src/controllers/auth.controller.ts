@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import db from '../config/database';
 import logger from '../utils/logger';
+import auditService from '../services/audit.service';
+import { checkAccountLockout, recordFailedLogin, clearFailedLogins } from '../middleware/rateLimiter';
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -14,6 +16,20 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         error: {
           code: 'VALIDATION_ERROR',
           message: 'ITS ID and password are required'
+        }
+      });
+      return;
+    }
+
+    // Check if account is locked
+    const lockoutStatus = await checkAccountLockout(its_id, req);
+    if (lockoutStatus.locked) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'ACCOUNT_LOCKED',
+          message: `Account temporarily locked. Please try again in ${Math.ceil((lockoutStatus.remainingTime || 0) / 60)} minutes`,
+          retry_after: lockoutStatus.remainingTime
         }
       });
       return;
@@ -35,15 +51,33 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
     if (!isPasswordValid) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'INVALID_CREDENTIALS',
-          message: 'Invalid ITS ID or password'
-        }
-      });
+      // Record failed login attempt
+      const failureResult = await recordFailedLogin(its_id, req);
+      
+      if (failureResult.locked) {
+        res.status(403).json({
+          success: false,
+          error: {
+            code: 'ACCOUNT_LOCKED',
+            message: `Too many failed attempts. Account locked for ${Math.ceil((failureResult.lockoutTime || 0) / 60)} minutes`,
+            lockout_time: failureResult.lockoutTime
+          }
+        });
+      } else {
+        res.status(401).json({
+          success: false,
+          error: {
+            code: 'INVALID_CREDENTIALS',
+            message: 'Invalid ITS ID or password',
+            remaining_attempts: failureResult.remainingAttempts
+          }
+        });
+      }
       return;
     }
+
+    // Clear failed login attempts on successful login
+    clearFailedLogins(its_id);
 
     const token = jwt.sign(
       {
@@ -57,6 +91,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     );
 
     logger.info(`User logged in: ${user.its_id}`);
+
+    // Log audit entry
+    await auditService.logLogin(
+      user.user_id,
+      req.ip,
+      req.get('user-agent')
+    );
 
     res.json({
       success: true,

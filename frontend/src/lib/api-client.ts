@@ -44,9 +44,22 @@ class ApiClient {
       const data = await response.json();
 
       if (!response.ok) {
+        // Extract meaningful error message
+        let errorMessage = `HTTP ${response.status}`;
+        
+        if (data.error) {
+          if (typeof data.error === 'object' && data.error.message) {
+            errorMessage = data.error.message;
+          } else if (typeof data.error === 'string') {
+            errorMessage = data.error;
+          }
+        } else if (data.message) {
+          errorMessage = data.message;
+        }
+        
         return {
           success: false,
-          error: data.error || data.message || `HTTP ${response.status}`,
+          error: errorMessage,
         };
       }
 
@@ -113,6 +126,25 @@ class ApiClient {
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
     });
+    if (!response.success) {
+      throw new Error(response.error || 'Request failed');
+    }
+    return response.data as T;
+  }
+
+  async put<T = any>(endpoint: string, data?: any): Promise<T> {
+    const response = await this.request<T>(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+    if (!response.success) {
+      throw new Error(response.error || 'Request failed');
+    }
+    return response.data as T;
+  }
+
+  async delete<T = any>(endpoint: string): Promise<T> {
+    const response = await this.request<T>(endpoint, { method: 'DELETE' });
     if (!response.success) {
       throw new Error(response.error || 'Request failed');
     }

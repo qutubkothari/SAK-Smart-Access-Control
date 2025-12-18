@@ -1,102 +1,37 @@
-import makeWASocket, { 
-  DisconnectReason, 
-  useMultiFileAuthState, 
-  WASocket
-} from '@whiskeysockets/baileys';
-import { Boom } from '@hapi/boom';
 import logger from '../utils/logger';
-import * as fs from 'fs';
-import * as path from 'path';
-import pino from 'pino';
+import axios from 'axios';
+import FormData from 'form-data';
 
 class WhatsAppService {
-  private sock: WASocket | null = null;
-  private authFolder = path.join(process.cwd(), 'whatsapp_auth');
-  private isConnected = false;
-  private qrCode: string | null = null;
-
-  constructor() {
-    this.initialize();
+  // We are intentionally NOT using Baileys in production.
+  // This service sends via the external WAPI HTTP API.
+  async initialize(): Promise<void> {
+    // no-op (WAPI)
+    logger.info('WhatsAppService.initialize() called (WAPI mode)');
   }
 
-  /**
-   * Initialize WhatsApp connection
-   */
-  async initialize() {
-    try {
-      // Ensure auth folder exists
-      if (!fs.existsSync(this.authFolder)) {
-        fs.mkdirSync(this.authFolder, { recursive: true });
-      }
-
-      const { state, saveCreds } = await useMultiFileAuthState(this.authFolder);
-
-      this.sock = makeWASocket({
-        auth: state,
-        printQRInTerminal: true,
-        logger: pino({ level: 'silent' })
-      });
-
-      // Connection events
-      this.sock.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect, qr } = update;
-
-        if (qr) {
-          this.qrCode = qr;
-          logger.info('📱 WhatsApp QR Code generated - scan with your phone');
-          // You can emit this QR to frontend for scanning
-        }
-
-        if (connection === 'close') {
-          const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
-          logger.info('❌ WhatsApp connection closed, reconnecting:', shouldReconnect);
-          
-          if (shouldReconnect) {
-            await this.initialize();
-          }
-          this.isConnected = false;
-        } else if (connection === 'open') {
-          logger.info('✅ WhatsApp connection established successfully');
-          this.isConnected = true;
-          this.qrCode = null;
-        }
-      });
-
-      // Save credentials when updated
-      this.sock.ev.on('creds.update', saveCreds);
-
-    } catch (error) {
-      logger.error('Error initializing WhatsApp:', error);
-    }
-  }
-
-  /**
-   * Get current QR code for scanning
-   */
   getQRCode(): string | null {
-    return this.qrCode;
+    return null;
   }
 
-  /**
-   * Check if WhatsApp is connected
-   */
   isWhatsAppConnected(): boolean {
-    return this.isConnected;
+    return !!(process.env.WAPI_API_KEY || process.env.SAK_API_KEY);
   }
 
   /**
-   * Format phone number for WhatsApp (add country code and @s.whatsapp.net)
+   * Format phone number for WhatsApp (add country code if needed)
    */
   private formatPhoneNumber(phone: string): string {
-    // Remove all non-digit characters
+    // Remove all non-digit characters (including + prefix for international numbers)
     let cleaned = phone.replace(/\D/g, '');
     
-    // Add country code if missing (assuming India +91)
+    // Add country code if missing (assuming India +91 for 10-digit numbers)
     if (!cleaned.startsWith('91') && cleaned.length === 10) {
       cleaned = '91' + cleaned;
     }
     
-    return cleaned + '@s.whatsapp.net';
+    // WAPI expects just the phone number, not Baileys JID format
+    return cleaned;
   }
 
   /**
@@ -104,13 +39,6 @@ class WhatsAppService {
    */
   async sendMessage(to: string, text: string): Promise<string | null> {
     try {
-      if (!this.sock || !this.isConnected) {
-        logger.warn('WhatsApp not connected, skipping message');
-        return null;
-      }
-
-      const jid = this.formatPhoneNumber(to);
-
       // Clean up currency symbols and ensure UTF-8
       const cleanText = text
         .replace(/â‚¹/g, '₹')
@@ -118,10 +46,52 @@ class WhatsAppService {
         .replace(/Rs\s+/g, '₹')
         .trim();
 
-      await this.sock.sendMessage(jid, { text: cleanText });
-      
-      logger.info(`WhatsApp text message sent to ${to}`);
-      return 'message_sent';
+      const apiKey = process.env.WAPI_API_KEY || process.env.SAK_API_KEY;
+      const sessionId = process.env.WAPI_SESSION_ID || process.env.SAK_SESSION_ID;
+      const sendUrl = process.env.WAPI_SEND_URL || 'http://wapi.saksolution.com/api/v1/messages/send';
+
+      if (!apiKey) {
+        logger.warn('No WAPI/SAK API key configured; skipping WhatsApp message');
+        return null;
+      }
+
+      if (!sessionId) {
+        logger.warn('No WAPI/SAK session id configured; skipping WhatsApp message');
+        return null;
+      }
+
+      const jid = this.formatPhoneNumber(to);
+
+        const resp = await axios.post(
+          sendUrl,
+          { sessionId, to: jid, text: cleanText },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': apiKey,
+              'x-session-id': sessionId,
+            },
+            timeout: 15000,
+            validateStatus: () => true,
+          }
+        );
+
+      const ok = resp?.status >= 200 && resp?.status < 300 && resp?.data?.success === true;
+      const status = resp?.data?.data?.status;
+      const messageId = resp?.data?.data?.messageId;
+
+      if (!ok || status === 'failed') {
+        logger.warn('WhatsApp WAPI send failed', {
+          httpStatus: resp?.status,
+          gatewayStatus: status,
+          responseBody: resp?.data,
+          to: jid,
+        });
+        return null;
+      }
+
+      logger.info(`WhatsApp (WAPI) message sent to ${to}`);
+      return messageId || 'message_sent';
     } catch (error: any) {
       logger.error('Error sending WhatsApp message:', error);
       return null;
@@ -133,20 +103,49 @@ class WhatsAppService {
    */
   async sendMessageWithImage(to: string, caption: string, imageBuffer: Buffer): Promise<string | null> {
     try {
-      if (!this.sock || !this.isConnected) {
-        logger.warn('WhatsApp not connected, skipping message');
+      const apiKey = process.env.WAPI_API_KEY || process.env.SAK_API_KEY;
+      const sessionId = process.env.WAPI_SESSION_ID || process.env.SAK_SESSION_ID;
+      const sendUrl = process.env.WAPI_IMAGE_URL || 'http://wapi.saksolution.com/api/v1/messages/send-image';
+
+      if (!apiKey || !sessionId) {
+        logger.warn('Missing WAPI credentials for image send');
         return null;
       }
 
       const jid = this.formatPhoneNumber(to);
+      if (!jid) return null;
 
-      await this.sock.sendMessage(jid, {
-        image: imageBuffer,
-        caption: caption
+      const form = new FormData();
+      form.append('to', jid);
+      form.append('caption', caption);
+      form.append('image', imageBuffer, { filename: 'qr.png', contentType: 'image/png' });
+
+      const resp = await axios.post(sendUrl, form, {
+        headers: {
+          ...form.getHeaders(),
+          'x-api-key': apiKey,
+          'x-session-id': sessionId,
+        },
+        timeout: 20000,
+        validateStatus: () => true,
       });
 
-      logger.info(`WhatsApp image message sent to ${to}`);
-      return 'message_sent';
+      const ok = resp?.status >= 200 && resp?.status < 300 && resp?.data?.success === true;
+      const status = resp?.data?.data?.status;
+      const messageId = resp?.data?.data?.messageId;
+
+      if (!ok || status === 'failed') {
+        logger.warn('WhatsApp WAPI image send failed', {
+          httpStatus: resp?.status,
+          gatewayStatus: status,
+          responseBody: resp?.data,
+          to: jid,
+        });
+        return null;
+      }
+
+      logger.info(`WhatsApp (WAPI image) message sent to ${to}`);
+      return messageId || 'image_sent';
     } catch (error: any) {
       logger.error('Error sending WhatsApp image:', error);
       return null;
@@ -158,22 +157,10 @@ class WhatsAppService {
    */
   async sendDocument(to: string, documentBuffer: Buffer, filename: string, caption: string = ''): Promise<string | null> {
     try {
-      if (!this.sock || !this.isConnected) {
-        logger.warn('WhatsApp not connected, skipping document');
-        return null;
-      }
-
-      const jid = this.formatPhoneNumber(to);
-
-      await this.sock.sendMessage(jid, {
-        document: documentBuffer,
-        fileName: filename,
-        caption: caption,
-        mimetype: 'application/pdf'
-      });
-
-      logger.info(`WhatsApp document sent to ${to}: ${filename}`);
-      return 'document_sent';
+      // WAPI integration is text-only here.
+      void documentBuffer;
+      const msg = caption ? `${caption}\n\n(Document: ${filename})` : `Document: ${filename}`;
+      return await this.sendMessage(to, msg);
     } catch (error: any) {
       logger.error('Error sending WhatsApp document:', error);
       return null;
@@ -214,12 +201,7 @@ class WhatsAppService {
    * Disconnect WhatsApp
    */
   async disconnect() {
-    if (this.sock) {
-      await this.sock.logout();
-      this.sock = null;
-      this.isConnected = false;
-      logger.info('WhatsApp disconnected');
-    }
+    // no-op (WAPI)
   }
 }
 

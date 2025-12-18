@@ -19,6 +19,8 @@ export const preRegisterVisitor = async (req: Request, res: Response): Promise<v
       email, 
       phone, 
       company, 
+      city,
+      state,
       visitor_type,
       host_its_id, 
       visit_date, 
@@ -159,6 +161,8 @@ export const preRegisterVisitor = async (req: Request, res: Response): Promise<v
         email,
         phone,
         company: company || null,
+        city: city || null,
+        state: state || null,
         visitor_type: visitor_type || 'guest',
         id_proof_type: id_proof_type || null,
         id_proof_number: id_proof_number || null,
@@ -174,7 +178,8 @@ export const preRegisterVisitor = async (req: Request, res: Response): Promise<v
     await NotificationService.sendMeetingInvite(
       { ...visitor, qr_code: qrCode.token },
       meeting,
-      qrCode.image
+      qrCode.image,
+      qrCode.qrId
     );
 
     // Notify host about pre-registration

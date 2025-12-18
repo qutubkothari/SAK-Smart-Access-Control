@@ -11,6 +11,11 @@ import { AdminUsersPage } from './pages/AdminUsersPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { UnauthorizedPage } from './pages/UnauthorizedPage';
 import { VisitorPreRegistrationPage } from './pages/VisitorPreRegistrationPage';
+import { AvailabilityPage } from './pages/AvailabilityPage';
+import BookInternalMeetingPage from './pages/BookInternalMeetingPage';
+import { SecretaryDashboardPage } from './pages/SecretaryDashboardPage';
+import { EmployeeDashboardPage } from './pages/EmployeeDashboardPage';
+import { AnalyticsPage } from './pages/AnalyticsPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuthStore } from './store/authStore';
 
@@ -18,18 +23,49 @@ const queryClient = new QueryClient();
 
 function App() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const user = useAuthStore((state) => state.user);
 
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage />} />
+          <Route 
+            path="/login" 
+            element={
+              isAuthenticated 
+                ? <Navigate to={
+                    user?.role === 'security' ? '/receptionist' : 
+                    user?.role === 'secretary' ? '/secretary-dashboard' :
+                    user?.role === 'employee' ? '/employee-dashboard' :
+                    '/dashboard'
+                  } /> 
+                : <LoginPage />
+            } 
+          />
           
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requiredRole={['admin', 'host', 'receptionist']}>
                 <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/secretary-dashboard"
+            element={
+              <ProtectedRoute requiredRole={['secretary']}>
+                <SecretaryDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/employee-dashboard"
+            element={
+              <ProtectedRoute requiredRole={['employee']}>
+                <EmployeeDashboardPage />
               </ProtectedRoute>
             }
           />
@@ -37,7 +73,7 @@ function App() {
           <Route
             path="/meetings"
             element={
-              <ProtectedRoute requiredRole={['admin', 'host']}>
+              <ProtectedRoute requiredRole={['admin', 'host', 'receptionist', 'secretary', 'employee']}>
                 <MeetingsPage />
               </ProtectedRoute>
             }
@@ -46,7 +82,7 @@ function App() {
           <Route
             path="/meetings/create"
             element={
-              <ProtectedRoute requiredRole={['admin', 'host']}>
+              <ProtectedRoute requiredRole={['admin', 'host', 'secretary', 'employee']}>
                 <CreateMeetingPage />
               </ProtectedRoute>
             }
@@ -62,9 +98,18 @@ function App() {
           />
 
           <Route
+            path="/meetings/internal/book"
+            element={
+              <ProtectedRoute requiredRole={['admin', 'host', 'receptionist', 'secretary', 'employee']}>
+                <BookInternalMeetingPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/receptionist"
             element={
-              <ProtectedRoute requiredRole={['receptionist', 'admin']}>
+              <ProtectedRoute requiredRole={['receptionist', 'admin', 'security']}>
                 <ReceptionistPage />
               </ProtectedRoute>
             }
@@ -75,6 +120,15 @@ function App() {
             element={
               <ProtectedRoute requiredRole={['admin', 'security', 'receptionist']}>
                 <VisitorsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/availability"
+            element={
+              <ProtectedRoute requiredRole={['admin', 'host', 'secretary', 'employee']}>
+                <AvailabilityPage />
               </ProtectedRoute>
             }
           />
@@ -97,13 +151,42 @@ function App() {
             }
           />
 
+          <Route
+            path="/analytics"
+            element={
+              <ProtectedRoute requiredRole={['admin', 'manager', 'hr', 'receptionist']}>
+                <AnalyticsPage />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Public route - no authentication required */}
           <Route path="/preregister" element={<VisitorPreRegistrationPage />} />
 
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
-          <Route path="/" element={<Navigate to="/dashboard" />} />
-          <Route path="*" element={<Navigate to="/dashboard" />} />
+          <Route 
+            path="/" 
+            element={
+              <Navigate to={
+                user?.role === 'security' ? '/receptionist' : 
+                user?.role === 'secretary' ? '/secretary-dashboard' :
+                user?.role === 'employee' ? '/employee-dashboard' :
+                '/dashboard'
+              } />
+            } 
+          />
+          <Route 
+            path="*" 
+            element={
+              <Navigate to={
+                user?.role === 'security' ? '/receptionist' : 
+                user?.role === 'secretary' ? '/secretary-dashboard' :
+                user?.role === 'employee' ? '/employee-dashboard' :
+                '/dashboard'
+              } />
+            } 
+          />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>

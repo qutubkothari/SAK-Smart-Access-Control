@@ -1,0 +1,22 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "https://sac.saksolution.com",
+      "localStorage": [
+        {
+          "name": "accessToken",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijg2YmU5NzBkLTNkZmUtNGYxYy1iMjVmLWQ2NWJhZjQ4MDYxMiIsIml0c19pZCI6IklUUzMwMDAwMSIsImVtYWlsIjoiZW1wbG95ZWUxQGNvbXBhbnkuY29tIiwicm9sZSI6ImVtcGxveWVlIiwiaWF0IjoxNzY1OTQ0NzAxLCJleHAiOjE3NjYwMzExMDF9.85IXPj82x3l1Uod8UtglbHEDyOfO8wgWsTvM2Ilkz7I"
+        },
+        {
+          "name": "auth-user",
+          "value": "{\"id\":\"86be970d-3dfe-4f1c-b25f-d65baf480612\",\"its_id\":\"ITS300001\",\"name\":\"Alex Johnson\",\"email\":\"employee1@company.com\",\"role\":\"employee\",\"department\":null}"
+        },
+        {
+          "name": "auth-token",
+          "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Ijg2YmU5NzBkLTNkZmUtNGYxYy1iMjVmLWQ2NWJhZjQ4MDYxMiIsIml0c19pZCI6IklUUzMwMDAwMSIsImVtYWlsIjoiZW1wbG95ZWUxQGNvbXBhbnkuY29tIiwicm9sZSI6ImVtcGxveWVlIiwiaWF0IjoxNzY1OTQ0NzAxLCJleHAiOjE3NjYwMzExMDF9.85IXPj82x3l1Uod8UtglbHEDyOfO8wgWsTvM2Ilkz7I"
+        }
+      ]
+    }
+  ]
+}
